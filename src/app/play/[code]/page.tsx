@@ -29,6 +29,8 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
   const [responseText, setResponseText] = useState('');
   const [mySubmission, setMySubmission] = useState<Submission | null>(null);
   const [joinedGame, setJoinedGame] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timerExpired, setTimerExpired] = useState(false);
 
   // Load teams
   useEffect(() => {
@@ -37,6 +39,47 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
       .then(data => setTeams(data))
       .catch(() => {});
   }, []);
+
+  // Timer sync from server timestamp
+  useEffect(() => {
+    if (!game || game.status !== 'active') {
+      setTimerExpired(false);
+      return;
+    }
+
+    // Calculate time remaining from server timestamp
+    const calculateRemaining = () => {
+      if (game.timer_started_at) {
+        const elapsed = Math.floor((Date.now() - new Date(game.timer_started_at).getTime()) / 1000);
+        return Math.max(0, game.timer_seconds - elapsed);
+      } else if (game.timer_paused_remaining !== null) {
+        return game.timer_paused_remaining;
+      }
+      return game.timer_seconds;
+    };
+
+    setTimeRemaining(calculateRemaining());
+
+    // Update timer every 250ms for smooth sync
+    const interval = setInterval(() => {
+      if (game.timer_started_at) {
+        const remaining = calculateRemaining();
+        setTimeRemaining(remaining);
+        if (remaining <= 0 && !timerExpired) {
+          setTimerExpired(true);
+        }
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [game?.status, game?.timer_started_at, game?.timer_seconds, game?.timer_paused_remaining, game?.current_round, timerExpired]);
+
+  // Format time helper
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Check if player is already loaded
   useEffect(() => {
@@ -307,6 +350,32 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
+              {/* Timer */}
+              <div className="text-center mb-4">
+                {timerExpired ? (
+                  <motion.p
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                    className="text-3xl font-bold text-[#FF2E6C]"
+                    style={{ fontFamily: 'var(--font-space-grotesk)' }}
+                  >
+                    TIME&apos;S UP!
+                  </motion.p>
+                ) : (
+                  <motion.p
+                    className={`text-4xl font-mono font-bold ${
+                      timeRemaining <= 30 ? 'text-[#FF2E6C]' :
+                      timeRemaining <= 60 ? 'text-[#F59E0B]' :
+                      'text-[#FFE500]'
+                    }`}
+                    animate={timeRemaining <= 10 ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ duration: 1, repeat: timeRemaining <= 10 ? Infinity : 0 }}
+                  >
+                    {formatTime(timeRemaining)}
+                  </motion.p>
+                )}
+              </div>
+
               <Card variant="glow" className="mb-4">
                 <p className="text-sm text-[#FAFAF5]/60 mb-2">
                   Round {game.current_round} of {game.total_rounds}
