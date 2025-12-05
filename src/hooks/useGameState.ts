@@ -100,6 +100,22 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
     },
   });
 
+  // Fallback polling in case real-time fails (every 3 seconds for active games)
+  useEffect(() => {
+    if (!autoRefresh || !game) return;
+
+    // Poll more frequently for active/judging games, less for lobby/completed
+    const pollInterval = (game.status === 'active' || game.status === 'judging')
+      ? 3000
+      : 10000;
+
+    const interval = setInterval(() => {
+      fetchGame();
+    }, pollInterval);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, game?.status, fetchGame]);
+
   // Game actions
   const updateGame = useCallback(async (updates: Partial<GameWithPlayers>) => {
     if (!code) return;

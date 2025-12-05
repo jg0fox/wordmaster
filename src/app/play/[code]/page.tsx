@@ -46,24 +46,38 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   }, [playerLoading, player]);
 
+  // Track current round to detect round changes
+  const currentRoundRef = useRef<number | null>(null);
+
   // Handle game state changes
   useEffect(() => {
     if (!game || !player) return;
 
+    // Detect round change
+    const roundChanged = currentRoundRef.current !== null &&
+                         currentRoundRef.current !== game.current_round;
+    currentRoundRef.current = game.current_round;
+
     if (game.status === 'lobby') {
       setView('waiting');
     } else if (game.status === 'active') {
-      if (submitted || mySubmission) {
+      // If round just changed, reset submission state and show playing view
+      if (roundChanged) {
+        setResponseText('');
+        setMySubmission(null);
+        reset();
+        setView('playing');
+      } else if (submitted || mySubmission) {
+        // Only show submitted if we have a submission for THIS round
         setView('submitted');
       } else {
         setView('playing');
-        reset();
       }
     } else if (game.status === 'judging' || game.status === 'completed') {
       fetchMySubmission();
       setView('results');
     }
-  }, [game?.status, game?.current_round, player]);
+  }, [game?.status, game?.current_round, player, submitted, mySubmission, reset]);
 
   // Join game
   const joinGame = async () => {
@@ -138,25 +152,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   };
 
-  // Reset for new round - triggered when round changes while game is active
-  useEffect(() => {
-    if (game?.status === 'active') {
-      setResponseText('');
-      setMySubmission(null);
-      reset(); // Reset the submission hook state as well
-    }
-  }, [game?.current_round, reset]);
-
-  // Also reset when transitioning from judging to active
-  const prevStatusRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (prevStatusRef.current === 'judging' && game?.status === 'active') {
-      setResponseText('');
-      setMySubmission(null);
-      reset();
-    }
-    prevStatusRef.current = game?.status || null;
-  }, [game?.status, reset]);
+  // Note: Round reset is now handled in the main view effect above
 
   if (!game) {
     return (

@@ -45,11 +45,13 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
     return () => clearInterval(interval);
   }, [game?.status, game?.timer_started_at, game?.timer_seconds, game?.timer_paused_remaining, game?.current_round, timerExpired]);
 
-  // Reset timer expired state when moving to a new round or status changes
+  // Reset timer expired state and submission tracking when moving to a new round
   useEffect(() => {
     if (game?.status !== 'active') {
       setTimerExpired(false);
     }
+    // Clear submitted player IDs when round changes (new round = fresh submissions)
+    setSubmittedPlayerIds(new Set());
   }, [game?.status, game?.current_round]);
 
   // Fetch submissions periodically during active game to show who has submitted
