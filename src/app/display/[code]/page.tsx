@@ -92,10 +92,10 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
               style={{ fontFamily: 'var(--font-space-grotesk)' }}
             >
               <span className="text-gradient">WORD</span>
-              <span className="text-[#FAFAF5]">MASTER</span>
+              <span className="text-[#FAFAF5]">WRANGLER</span>
             </motion.h1>
 
-            <p className="text-2xl text-[#FAFAF5]/60 mb-8">Join at wordmaster.vercel.app/play</p>
+            <p className="text-2xl text-[#FAFAF5]/60 mb-8">Join at wordwrangler.vercel.app/play</p>
 
             <motion.div
               initial={{ scale: 0.8 }}
@@ -254,7 +254,7 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
               className="text-6xl font-bold text-[#FFE500] mb-4"
               style={{ fontFamily: 'var(--font-space-grotesk)' }}
             >
-              WORDMASTER
+              WORDWRANGLER
             </motion.h2>
 
             <motion.div

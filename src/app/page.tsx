@@ -25,7 +25,7 @@ export default function HomePage() {
           style={{ fontFamily: 'var(--font-space-grotesk)' }}
         >
           <span className="text-gradient">WORD</span>
-          <span className="text-[#FAFAF5]">MASTER</span>
+          <span className="text-[#FAFAF5]">WRANGLER</span>
         </motion.h1>
 
         <motion.p

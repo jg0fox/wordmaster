@@ -1,4 +1,4 @@
-// Database types for Wordmaster
+// Database types for Wordwrangler
 
 export type GameStatus = 'lobby' | 'active' | 'judging' | 'reflection' | 'completed';
 

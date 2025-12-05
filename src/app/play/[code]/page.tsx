@@ -166,7 +166,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
             style={{ fontFamily: 'var(--font-space-grotesk)' }}
           >
             <span className="text-gradient">WORD</span>
-            <span className="text-[#FAFAF5]">MASTER</span>
+            <span className="text-[#FAFAF5]">WRANGLER</span>
           </h1>
           {player && (
             <p className="text-sm text-[#FAFAF5]/60 mt-1">

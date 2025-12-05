@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { useGameState } from '@/hooks/useGameState';
-import type { Submission, ReflectionResponse } from '@/types/database';
+import { useGameState, useFacilitatorSession } from '@/hooks/useGameState';
+import type { Submission, ReflectionResponse, Team } from '@/types/database';
 
 type View = 'setup' | 'lobby' | 'playing' | 'judging' | 'leaderboard' | 'reflection' | 'winner';
 
 export default function FacilitatorPage() {
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [view, setView] = useState<View>('setup');
-  const [facilitatorName, setFacilitatorName] = useState('');
+  const [gameName, setGameName] = useState('');
   const [totalRounds, setTotalRounds] = useState(5);
   const [timerSeconds, setTimerSeconds] = useState(180);
   const [creating, setCreating] = useState(false);
@@ -24,11 +24,53 @@ export default function FacilitatorPage() {
   const [judging, setJudging] = useState(false);
   const [reflection, setReflection] = useState<ReflectionResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  const { game, loading, startGame, nextRound, triggerJudgment, triggerReflection, fetchLeaderboard, fetchSubmissions } = useGameState({
+  const { activeGameCode, loading: sessionLoading, setActiveGame, clearActiveGame } = useFacilitatorSession();
+
+  const { game, startGame, nextRound, triggerJudgment, triggerReflection, fetchLeaderboard, fetchSubmissions, refresh } = useGameState({
     code: gameCode || '',
     autoRefresh: true,
   });
+
+  // Load teams
+  useEffect(() => {
+    fetch('/api/teams')
+      .then(res => res.json())
+      .then(data => setTeams(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  // Check for existing active game on mount
+  useEffect(() => {
+    if (sessionLoading) return;
+
+    if (activeGameCode && !gameCode) {
+      // Verify the game still exists and is not completed
+      fetch(`/api/games/${activeGameCode}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Game not found');
+          return res.json();
+        })
+        .then(gameData => {
+          if (gameData && gameData.status !== 'completed') {
+            setGameCode(activeGameCode);
+            if (gameData.status === 'lobby') {
+              setView('lobby');
+            } else if (gameData.status === 'active') {
+              setView('playing');
+              setTimeRemaining(gameData.timer_seconds);
+            }
+          } else {
+            clearActiveGame();
+          }
+        })
+        .catch(() => {
+          clearActiveGame();
+        });
+    }
+  }, [activeGameCode, sessionLoading, gameCode, clearActiveGame]);
 
   // Create new game
   const createGame = async () => {
@@ -38,7 +80,7 @@ export default function FacilitatorPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          facilitator_name: facilitatorName || 'Facilitator',
+          facilitator_name: gameName || 'Wordwrangler Game',
           total_rounds: totalRounds,
           timer_seconds: timerSeconds,
         }),
@@ -48,12 +90,33 @@ export default function FacilitatorPage() {
 
       const data = await response.json();
       setGameCode(data.code);
+      setActiveGame(data.code);
       setView('lobby');
     } catch (error) {
       console.error('Error creating game:', error);
     } finally {
       setCreating(false);
     }
+  };
+
+  // Cancel current game
+  const handleCancelGame = async () => {
+    if (!gameCode) return;
+
+    try {
+      await fetch(`/api/games/${gameCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' }),
+      });
+    } catch (error) {
+      console.error('Error canceling game:', error);
+    }
+
+    clearActiveGame();
+    setGameCode(null);
+    setView('setup');
+    setShowCancelConfirm(false);
   };
 
   // Timer logic
@@ -87,7 +150,7 @@ export default function FacilitatorPage() {
     } else if (game.status === 'completed') {
       setView('winner');
     }
-  }, [game?.status, game?.current_round]);
+  }, [game?.status, game?.current_round, timerRunning, timeRemaining]);
 
   // Start the game
   const handleStartGame = async () => {
@@ -184,6 +247,41 @@ export default function FacilitatorPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Update player's team
+  const handleUpdatePlayerTeam = async (playerId: string, teamId: string | null) => {
+    try {
+      await fetch(`/api/players/${playerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_id: teamId }),
+      });
+      // Refresh game to get updated player data
+      refresh();
+    } catch (error) {
+      console.error('Error updating player team:', error);
+    }
+  };
+
+  // End game and start new one
+  const handleNewGame = () => {
+    clearActiveGame();
+    setGameCode(null);
+    setView('setup');
+    setReflection(null);
+    setLeaderboard([]);
+  };
+
+  // Show loading while checking session
+  if (sessionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }}>
+          Loading...
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-4xl mx-auto">
@@ -193,7 +291,7 @@ export default function FacilitatorPage() {
             className="text-3xl font-bold text-gradient"
             style={{ fontFamily: 'var(--font-space-grotesk)' }}
           >
-            WORDMASTER
+            WORDWRANGLER
           </h1>
           {gameCode && (
             <div className="flex items-center gap-4">
@@ -221,10 +319,10 @@ export default function FacilitatorPage() {
 
                 <div className="space-y-4">
                   <Input
-                    label="Your Name"
-                    value={facilitatorName}
-                    onChange={(e) => setFacilitatorName(e.target.value)}
-                    placeholder="Facilitator"
+                    label="Game Name"
+                    value={gameName}
+                    onChange={(e) => setGameName(e.target.value)}
+                    placeholder="e.g., Friday Team Challenge"
                   />
 
                   <div className="grid grid-cols-2 gap-4">
@@ -242,7 +340,7 @@ export default function FacilitatorPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#FAFAF5]/80 mb-1">Timer</label>
+                      <label className="block text-sm font-medium text-[#FAFAF5]/80 mb-1">Time per Round</label>
                       <select
                         value={timerSeconds}
                         onChange={(e) => setTimerSeconds(Number(e.target.value))}
@@ -252,6 +350,9 @@ export default function FacilitatorPage() {
                           <option key={n} value={n}>{Math.floor(n / 60)}:{(n % 60).toString().padStart(2, '0')}</option>
                         ))}
                       </select>
+                      <p className="text-xs text-[#FAFAF5]/50 mt-1">
+                        How long players have to complete each challenge
+                      </p>
                     </div>
                   </div>
 
@@ -281,25 +382,43 @@ export default function FacilitatorPage() {
                 <p className="text-6xl font-mono font-bold text-[#FFE500] tracking-wider">
                   {gameCode}
                 </p>
+                {game.facilitator_name && (
+                  <p className="text-[#FAFAF5]/50 mt-2">{game.facilitator_name}</p>
+                )}
               </div>
 
               <Card className="mb-6">
-                <h3 className="text-xl font-semibold mb-4">
-                  Players ({game.game_players?.length || 0})
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">
+                    Players ({game.game_players?.length || 0})
+                  </h3>
+                  {teams.length > 0 && (
+                    <span className="text-sm text-[#FAFAF5]/50">Assign teams below</span>
+                  )}
+                </div>
+                <div className="space-y-3">
                   {game.game_players?.map((gp) => (
                     <div
                       key={gp.id}
-                      className="flex items-center gap-2 p-3 rounded-lg bg-[#FAFAF5]/5"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-[#FAFAF5]/5"
                     >
                       <span className="text-2xl">{gp.player?.avatar || '👤'}</span>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{gp.player?.display_name}</p>
-                        {gp.player?.team?.name && (
-                          <p className="text-xs text-[#FAFAF5]/50">{gp.player.team.name}</p>
-                        )}
+                        <p className="text-xs text-[#FAFAF5]/50">{gp.player?.email}</p>
                       </div>
+                      {teams.length > 0 && (
+                        <select
+                          value={gp.player?.team_id || ''}
+                          onChange={(e) => handleUpdatePlayerTeam(gp.player?.id || '', e.target.value || null)}
+                          className="px-3 py-2 rounded-lg bg-[#FAFAF5]/10 border border-[#FAFAF5]/20 text-[#FAFAF5] text-sm"
+                        >
+                          <option value="">No team</option>
+                          {teams.map((team) => (
+                            <option key={team.id} value={team.id}>{team.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -312,6 +431,9 @@ export default function FacilitatorPage() {
               </Card>
 
               <div className="flex gap-4 justify-center">
+                <Button onClick={() => setShowCancelConfirm(true)} variant="ghost" size="lg">
+                  Cancel Game
+                </Button>
                 <Button onClick={openDisplay} variant="ghost" size="lg">
                   Open Display
                 </Button>
@@ -323,6 +445,26 @@ export default function FacilitatorPage() {
                   Start Game
                 </Button>
               </div>
+
+              {/* Cancel confirmation modal */}
+              {showCancelConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <Card className="max-w-sm mx-4">
+                    <h3 className="text-xl font-bold mb-4">Cancel Game?</h3>
+                    <p className="text-[#FAFAF5]/70 mb-6">
+                      This will end the current game session. All players will need to rejoin a new game.
+                    </p>
+                    <div className="flex gap-4">
+                      <Button onClick={() => setShowCancelConfirm(false)} variant="ghost" className="flex-1">
+                        Keep Playing
+                      </Button>
+                      <Button onClick={handleCancelGame} variant="accent" className="flex-1">
+                        Cancel Game
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -426,13 +568,13 @@ export default function FacilitatorPage() {
                         <div className="flex items-start gap-3">
                           <span className="text-2xl">🎭</span>
                           <p className="text-[#FAFAF5]/80 italic">
-                            "{submissions[currentSubmissionIndex]?.alex_quote}"
+                            &quot;{submissions[currentSubmissionIndex]?.alex_quote}&quot;
                           </p>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="text-2xl">👑</span>
                           <p className="text-[#FAFAF5] font-semibold">
-                            "{submissions[currentSubmissionIndex]?.greg_quote}"
+                            &quot;{submissions[currentSubmissionIndex]?.greg_quote}&quot;
                           </p>
                         </div>
                         <div className="text-center mt-4">
@@ -582,7 +724,7 @@ export default function FacilitatorPage() {
               {leaderboard[0] && (
                 <>
                   <h2 className="text-4xl font-bold text-[#FFE500] mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                    WORDMASTER
+                    WORDWRANGLER
                   </h2>
                   <p className="text-5xl font-bold mb-4">{leaderboard[0].display_name}</p>
                   <p className="text-2xl text-[#FAFAF5]/60">{leaderboard[0].score} points</p>
@@ -590,7 +732,7 @@ export default function FacilitatorPage() {
               )}
 
               <div className="mt-12">
-                <Button onClick={() => { setGameCode(null); setView('setup'); }} variant="ghost" size="lg">
+                <Button onClick={handleNewGame} variant="ghost" size="lg">
                   New Game
                 </Button>
               </div>

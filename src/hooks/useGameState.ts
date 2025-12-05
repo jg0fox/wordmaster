@@ -174,12 +174,12 @@ export function usePlayer() {
 
   // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('wordmaster_player');
+    const stored = localStorage.getItem('wordwrangler_player');
     if (stored) {
       try {
         setPlayer(JSON.parse(stored));
       } catch {
-        localStorage.removeItem('wordmaster_player');
+        localStorage.removeItem('wordwrangler_player');
       }
     }
     setLoading(false);
@@ -191,7 +191,7 @@ export function usePlayer() {
       if (response.ok) {
         const data = await response.json();
         setPlayer(data);
-        localStorage.setItem('wordmaster_player', JSON.stringify(data));
+        localStorage.setItem('wordwrangler_player', JSON.stringify(data));
         return data;
       }
       return null;
@@ -217,7 +217,7 @@ export function usePlayer() {
 
       const player = await response.json();
       setPlayer(player);
-      localStorage.setItem('wordmaster_player', JSON.stringify(player));
+      localStorage.setItem('wordwrangler_player', JSON.stringify(player));
       return player;
     } catch {
       return null;
@@ -226,7 +226,7 @@ export function usePlayer() {
 
   const logout = useCallback(() => {
     setPlayer(null);
-    localStorage.removeItem('wordmaster_player');
+    localStorage.removeItem('wordwrangler_player');
   }, []);
 
   const updatePlayer = useCallback(async (updates: Partial<Player>) => {
@@ -243,7 +243,7 @@ export function usePlayer() {
 
       const updated = await response.json();
       setPlayer(updated);
-      localStorage.setItem('wordmaster_player', JSON.stringify(updated));
+      localStorage.setItem('wordwrangler_player', JSON.stringify(updated));
       return updated;
     } catch {
       return null;
@@ -257,6 +257,71 @@ export function usePlayer() {
     register,
     logout,
     updatePlayer,
+  };
+}
+
+// Hook for game session persistence (player's current game)
+export function useGameSession() {
+  const [gameCode, setGameCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('wordwrangler_game_session');
+    if (stored) {
+      setGameCode(stored);
+    }
+    setLoading(false);
+  }, []);
+
+  const joinSession = useCallback((code: string) => {
+    setGameCode(code);
+    localStorage.setItem('wordwrangler_game_session', code);
+  }, []);
+
+  const leaveSession = useCallback(() => {
+    setGameCode(null);
+    localStorage.removeItem('wordwrangler_game_session');
+  }, []);
+
+  return {
+    gameCode,
+    loading,
+    joinSession,
+    leaveSession,
+  };
+}
+
+// Hook for facilitator's active game
+export function useFacilitatorSession() {
+  const [activeGameCode, setActiveGameCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('wordwrangler_facilitator_game');
+    if (stored) {
+      setActiveGameCode(stored);
+    }
+    setLoading(false);
+  }, []);
+
+  const setActiveGame = useCallback((code: string) => {
+    setActiveGameCode(code);
+    localStorage.setItem('wordwrangler_facilitator_game', code);
+  }, []);
+
+  const clearActiveGame = useCallback(() => {
+    setActiveGameCode(null);
+    localStorage.removeItem('wordwrangler_facilitator_game');
+  }, []);
+
+  return {
+    activeGameCode,
+    loading,
+    setActiveGame,
+    clearActiveGame,
+    hasActiveGame: !!activeGameCode,
   };
 }
 

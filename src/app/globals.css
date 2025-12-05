@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Wordmaster Color Palette */
+  /* Wordwrangler Color Palette */
   --color-primary: #FFE500;      /* Electric yellow - game show energy */
   --color-secondary: #2D1B69;    /* Deep purple - gravitas */
   --color-accent: #FF2E6C;       /* Hot pink - chaos */
