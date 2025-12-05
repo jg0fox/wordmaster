@@ -94,7 +94,7 @@ export async function PATCH(
     }
 
     // Allowed updates
-    const allowedFields = ['status', 'current_round', 'timer_seconds'];
+    const allowedFields = ['status', 'current_round', 'timer_seconds', 'timer_started_at', 'timer_paused_remaining'];
     const updates: Record<string, unknown> = {};
 
     for (const field of allowedFields) {

@@ -365,52 +365,26 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              {mySubmission?.ai_score ? (
-                <Card variant="glow">
-                  <div className="text-center mb-6">
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", bounce: 0.5 }}
-                      className={`inline-block px-8 py-4 rounded-full text-4xl font-bold score-${mySubmission.ai_score}`}
-                    >
-                      {mySubmission.ai_score} points
-                    </motion.span>
-                  </div>
+              <Card className="text-center">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-6xl mb-4"
+                >
+                  ⚖️
+                </motion.div>
+                <h2 className="text-xl font-semibold mb-2">Judging Time!</h2>
+                <p className="text-[#FAFAF5]/60 mb-4">
+                  The facilitator is reviewing submissions...
+                </p>
 
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">🎭</span>
-                      <p className="text-[#FAFAF5]/80 italic text-sm">
-                        "{mySubmission.alex_quote}"
-                      </p>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">👑</span>
-                      <p className="text-[#FAFAF5] font-medium">
-                        "{mySubmission.greg_quote}"
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-[#0A0A0F] rounded-lg">
+                {mySubmission && (
+                  <div className="mt-6 p-4 bg-[#0A0A0F] rounded-lg text-left">
                     <p className="text-xs text-[#FAFAF5]/50 mb-1">Your submission:</p>
                     <p className="font-mono text-sm">{mySubmission.content}</p>
                   </div>
-                </Card>
-              ) : (
-                <Card className="text-center">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="text-4xl mb-4"
-                  >
-                    ⚖️
-                  </motion.div>
-                  <p className="text-[#FAFAF5]/60">Waiting for results...</p>
-                </Card>
-              )}
+                )}
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>

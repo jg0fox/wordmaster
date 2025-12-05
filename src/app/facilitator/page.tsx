@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -20,27 +20,37 @@ export default function FacilitatorPage() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [currentSubmissionIndex, setCurrentSubmissionIndex] = useState(0);
-  const [judging, setJudging] = useState(false);
+  const [selectedWinner, setSelectedWinner] = useState<string | null>(null);
+  const [awardingPoints, setAwardingPoints] = useState(false);
   const [reflection, setReflection] = useState<ReflectionResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCreateTeam, setShowCreateTeam] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [creatingTeam, setCreatingTeam] = useState(false);
 
   const { activeGameCode, loading: sessionLoading, setActiveGame, clearActiveGame } = useFacilitatorSession();
 
-  const { game, startGame, nextRound, triggerJudgment, triggerReflection, fetchLeaderboard, fetchSubmissions, refresh } = useGameState({
+  const { game, startGame, nextRound, updateGame, triggerReflection, fetchLeaderboard, fetchSubmissions, refresh } = useGameState({
     code: gameCode || '',
     autoRefresh: true,
   });
 
   // Load teams
-  useEffect(() => {
-    fetch('/api/teams')
-      .then(res => res.json())
-      .then(data => setTeams(Array.isArray(data) ? data : []))
-      .catch(() => {});
+  const loadTeams = useCallback(async () => {
+    try {
+      const res = await fetch('/api/teams');
+      const data = await res.json();
+      setTeams(Array.isArray(data) ? data : []);
+    } catch {
+      // ignore
+    }
   }, []);
+
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
 
   // Check for existing active game on mount
   useEffect(() => {
@@ -56,11 +66,22 @@ export default function FacilitatorPage() {
         .then(gameData => {
           if (gameData && gameData.status !== 'completed') {
             setGameCode(activeGameCode);
+            setTimerSeconds(gameData.timer_seconds);
             if (gameData.status === 'lobby') {
               setView('lobby');
             } else if (gameData.status === 'active') {
               setView('playing');
-              setTimeRemaining(gameData.timer_seconds);
+              // Calculate remaining time from server timestamp
+              if (gameData.timer_started_at) {
+                const elapsed = Math.floor((Date.now() - new Date(gameData.timer_started_at).getTime()) / 1000);
+                setTimeRemaining(Math.max(0, gameData.timer_seconds - elapsed));
+                setTimerRunning(true);
+              } else if (gameData.timer_paused_remaining !== null) {
+                setTimeRemaining(gameData.timer_paused_remaining);
+                setTimerRunning(false);
+              }
+            } else if (gameData.status === 'judging') {
+              setView('judging');
             }
           } else {
             clearActiveGame();
@@ -119,22 +140,23 @@ export default function FacilitatorPage() {
     setShowCancelConfirm(false);
   };
 
-  // Timer logic
+  // Timer sync - calculate from server timestamp
   useEffect(() => {
-    if (!timerRunning || timeRemaining <= 0) return;
+    if (!game || !timerRunning) return;
 
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
+      if (game.timer_started_at) {
+        const elapsed = Math.floor((Date.now() - new Date(game.timer_started_at).getTime()) / 1000);
+        const remaining = Math.max(0, game.timer_seconds - elapsed);
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
           setTimerRunning(false);
-          return 0;
         }
-        return prev - 1;
-      });
-    }, 1000);
+      }
+    }, 250); // More frequent updates for better sync
 
     return () => clearInterval(interval);
-  }, [timerRunning, timeRemaining]);
+  }, [game, timerRunning]);
 
   // Handle game status changes
   useEffect(() => {
@@ -144,64 +166,114 @@ export default function FacilitatorPage() {
       setView('lobby');
     } else if (game.status === 'active' && game.current_round > 0) {
       setView('playing');
-      if (!timerRunning && timeRemaining === 0) {
-        setTimeRemaining(game.timer_seconds);
+      // Sync timer state from server
+      if (game.timer_started_at) {
+        setTimerRunning(true);
+      } else if (game.timer_paused_remaining !== null) {
+        setTimeRemaining(game.timer_paused_remaining);
+        setTimerRunning(false);
       }
+    } else if (game.status === 'judging') {
+      setView('judging');
     } else if (game.status === 'completed') {
       setView('winner');
     }
-  }, [game?.status, game?.current_round, timerRunning, timeRemaining]);
+  }, [game?.status, game?.current_round, game?.timer_started_at, game?.timer_paused_remaining]);
 
   // Start the game
   const handleStartGame = async () => {
-    await startGame();
-    setTimeRemaining(timerSeconds);
+    // Set timer_started_at to now
+    await updateGame({
+      status: 'active',
+      current_round: 1,
+      timer_started_at: new Date().toISOString(),
+      timer_paused_remaining: null,
+    });
     setTimerRunning(true);
   };
 
-  // Start timer
-  const handleStartTimer = () => {
+  // Start timer (resume)
+  const handleStartTimer = async () => {
+    // Resume from paused state - use current remaining time
+    const newTimerSeconds = timeRemaining;
+    await updateGame({
+      timer_seconds: newTimerSeconds,
+      timer_started_at: new Date().toISOString(),
+      timer_paused_remaining: null,
+    });
     setTimerRunning(true);
   };
 
   // Pause timer
-  const handlePauseTimer = () => {
+  const handlePauseTimer = async () => {
     setTimerRunning(false);
+    await updateGame({
+      timer_started_at: null,
+      timer_paused_remaining: timeRemaining,
+    });
   };
 
   // Add time
-  const handleAddTime = () => {
-    setTimeRemaining((prev) => prev + 30);
+  const handleAddTime = async () => {
+    if (timerRunning && game?.timer_started_at) {
+      // If running, extend the timer_seconds
+      const elapsed = Math.floor((Date.now() - new Date(game.timer_started_at).getTime()) / 1000);
+      await updateGame({
+        timer_seconds: game.timer_seconds + 30,
+      });
+      setTimeRemaining(Math.max(0, game.timer_seconds + 30 - elapsed));
+    } else {
+      // If paused, add to paused_remaining
+      const newRemaining = timeRemaining + 30;
+      setTimeRemaining(newRemaining);
+      await updateGame({
+        timer_paused_remaining: newRemaining,
+      });
+    }
   };
 
-  // End round and judge
+  // End round and go to judging
   const handleEndRound = async () => {
     setTimerRunning(false);
-    setView('judging');
-    setJudging(true);
-    setCurrentSubmissionIndex(0);
 
-    // Fetch submissions
+    // Update game status to judging
+    await updateGame({
+      status: 'judging',
+      timer_started_at: null,
+      timer_paused_remaining: null,
+    });
+
+    // Fetch submissions for judging
     const subs = await fetchSubmissions();
     setSubmissions(subs);
-
-    // Trigger judgment
-    const results = await triggerJudgment();
-    if (results?.results) {
-      setSubmissions(results.results);
-    }
-
-    setJudging(false);
+    setSelectedWinner(null);
+    setView('judging');
   };
 
-  // Show next submission
-  const handleNextSubmission = () => {
-    if (currentSubmissionIndex < submissions.length - 1) {
-      setCurrentSubmissionIndex((prev) => prev + 1);
-    } else {
-      // All submissions shown, go to leaderboard
-      handleShowLeaderboard();
+  // Award points to winner
+  const handleAwardPoints = async (points: number) => {
+    if (!selectedWinner || !gameCode) return;
+
+    setAwardingPoints(true);
+    try {
+      await fetch(`/api/games/${gameCode}/award`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: selectedWinner, points }),
+      });
+
+      // Show leaderboard
+      await handleShowLeaderboard();
+    } catch (error) {
+      console.error('Error awarding points:', error);
+    } finally {
+      setAwardingPoints(false);
     }
+  };
+
+  // Skip judging (no winner)
+  const handleSkipJudging = async () => {
+    await handleShowLeaderboard();
   };
 
   // Show leaderboard
@@ -219,8 +291,13 @@ export default function FacilitatorPage() {
       // Game over, show reflection
       handleStartReflection();
     } else {
-      await nextRound();
-      setTimeRemaining(timerSeconds);
+      await updateGame({
+        status: 'active',
+        current_round: (game?.current_round || 0) + 1,
+        timer_seconds: timerSeconds,
+        timer_started_at: new Date().toISOString(),
+        timer_paused_remaining: null,
+      });
       setTimerRunning(true);
       setView('playing');
     }
@@ -259,6 +336,30 @@ export default function FacilitatorPage() {
       refresh();
     } catch (error) {
       console.error('Error updating player team:', error);
+    }
+  };
+
+  // Create new team
+  const handleCreateTeam = async () => {
+    if (!newTeamName.trim()) return;
+
+    setCreatingTeam(true);
+    try {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTeamName.trim() }),
+      });
+
+      if (res.ok) {
+        setNewTeamName('');
+        setShowCreateTeam(false);
+        await loadTeams();
+      }
+    } catch (error) {
+      console.error('Error creating team:', error);
+    } finally {
+      setCreatingTeam(false);
     }
   };
 
@@ -387,14 +488,42 @@ export default function FacilitatorPage() {
                 )}
               </div>
 
+              {/* Teams Section */}
+              <Card className="mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">Teams</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCreateTeam(true)}
+                  >
+                    + New Team
+                  </Button>
+                </div>
+                {teams.length === 0 ? (
+                  <p className="text-[#FAFAF5]/50 text-center py-4">
+                    No teams created yet. Create teams to group players.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {teams.map((team) => (
+                      <span
+                        key={team.id}
+                        className="px-3 py-1 rounded-full bg-[#2D1B69]/50 text-sm"
+                      >
+                        {team.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              {/* Players Section */}
               <Card className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold">
                     Players ({game.game_players?.length || 0})
                   </h3>
-                  {teams.length > 0 && (
-                    <span className="text-sm text-[#FAFAF5]/50">Assign teams below</span>
-                  )}
                 </div>
                 <div className="space-y-3">
                   {game.game_players?.map((gp) => (
@@ -407,18 +536,16 @@ export default function FacilitatorPage() {
                         <p className="font-medium">{gp.player?.display_name}</p>
                         <p className="text-xs text-[#FAFAF5]/50">{gp.player?.email}</p>
                       </div>
-                      {teams.length > 0 && (
-                        <select
-                          value={gp.player?.team_id || ''}
-                          onChange={(e) => handleUpdatePlayerTeam(gp.player?.id || '', e.target.value || null)}
-                          className="px-3 py-2 rounded-lg bg-[#FAFAF5]/10 border border-[#FAFAF5]/20 text-[#FAFAF5] text-sm"
-                        >
-                          <option value="">No team</option>
-                          {teams.map((team) => (
-                            <option key={team.id} value={team.id}>{team.name}</option>
-                          ))}
-                        </select>
-                      )}
+                      <select
+                        value={gp.player?.team_id || ''}
+                        onChange={(e) => handleUpdatePlayerTeam(gp.player?.id || '', e.target.value || null)}
+                        className="px-3 py-2 rounded-lg bg-[#FAFAF5]/10 border border-[#FAFAF5]/20 text-[#FAFAF5] text-sm"
+                      >
+                        <option value="">No team</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>{team.name}</option>
+                        ))}
+                      </select>
                     </div>
                   ))}
                 </div>
@@ -460,6 +587,33 @@ export default function FacilitatorPage() {
                       </Button>
                       <Button onClick={handleCancelGame} variant="accent" className="flex-1">
                         Cancel Game
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* Create team modal */}
+              {showCreateTeam && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <Card className="max-w-sm mx-4">
+                    <h3 className="text-xl font-bold mb-4">Create Team</h3>
+                    <Input
+                      label="Team Name"
+                      value={newTeamName}
+                      onChange={(e) => setNewTeamName(e.target.value)}
+                      placeholder="e.g., Red Dragons"
+                    />
+                    <div className="flex gap-4 mt-6">
+                      <Button onClick={() => setShowCreateTeam(false)} variant="ghost" className="flex-1">
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleCreateTeam}
+                        disabled={!newTeamName.trim() || creatingTeam}
+                        className="flex-1"
+                      >
+                        {creatingTeam ? 'Creating...' : 'Create'}
                       </Button>
                     </div>
                   </Card>
@@ -524,7 +678,7 @@ export default function FacilitatorPage() {
             </motion.div>
           )}
 
-          {/* Judging View */}
+          {/* Judging View - Human Scoring */}
           {view === 'judging' && (
             <motion.div
               key="judging"
@@ -532,73 +686,82 @@ export default function FacilitatorPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              {judging ? (
+              <h2 className="text-2xl font-bold text-center mb-6" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                Choose a Winner
+              </h2>
+
+              {submissions.length === 0 ? (
                 <div className="text-center py-20">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="text-6xl mb-4"
-                  >
-                    ⚖️
-                  </motion.div>
-                  <p className="text-2xl">The judges are deliberating...</p>
+                  <p className="text-xl text-[#FAFAF5]/60">No submissions this round</p>
+                  <Button onClick={handleSkipJudging} size="lg" className="mt-4">
+                    Continue to Leaderboard
+                  </Button>
                 </div>
-              ) : submissions.length > 0 ? (
-                <div>
-                  <div className="text-center mb-4">
-                    <p className="text-[#FAFAF5]/60">
-                      Submission {currentSubmissionIndex + 1} of {submissions.length}
-                    </p>
+              ) : (
+                <>
+                  <div className="space-y-4 mb-8">
+                    {submissions.map((submission) => (
+                      <Card
+                        key={submission.id}
+                        className={`cursor-pointer transition-all ${
+                          selectedWinner === submission.player_id
+                            ? 'ring-2 ring-[#FFE500] bg-[#FFE500]/10'
+                            : 'hover:bg-[#FAFAF5]/5'
+                        }`}
+                        onClick={() => setSelectedWinner(submission.player_id)}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">{submission.player?.avatar || '👤'}</span>
+                            <div>
+                              <h3 className="font-bold">{submission.player?.display_name}</h3>
+                              {submission.player?.team && (
+                                <p className="text-xs text-[#FAFAF5]/50">{submission.player.team.name}</p>
+                              )}
+                            </div>
+                          </div>
+                          {selectedWinner === submission.player_id && (
+                            <span className="ml-auto text-[#FFE500] text-2xl">✓</span>
+                          )}
+                        </div>
+                        <div className="mt-4 bg-[#0A0A0F] rounded-lg p-4 font-mono text-sm">
+                          {submission.content}
+                        </div>
+                      </Card>
+                    ))}
                   </div>
 
-                  <Card variant="glow" className="mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-3xl">{submissions[currentSubmissionIndex]?.player?.avatar || '👤'}</span>
-                      <h3 className="text-xl font-bold">
-                        {submissions[currentSubmissionIndex]?.player?.display_name}
-                      </h3>
-                    </div>
-
-                    <div className="bg-[#0A0A0F] rounded-lg p-4 mb-4 font-mono text-sm">
-                      {submissions[currentSubmissionIndex]?.content}
-                    </div>
-
-                    {submissions[currentSubmissionIndex]?.ai_score && (
-                      <div className="space-y-3">
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl">🎭</span>
-                          <p className="text-[#FAFAF5]/80 italic">
-                            &quot;{submissions[currentSubmissionIndex]?.alex_quote}&quot;
-                          </p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl">👑</span>
-                          <p className="text-[#FAFAF5] font-semibold">
-                            &quot;{submissions[currentSubmissionIndex]?.greg_quote}&quot;
-                          </p>
-                        </div>
-                        <div className="text-center mt-4">
-                          <span className={`inline-block px-6 py-2 rounded-full text-3xl font-bold score-${submissions[currentSubmissionIndex]?.ai_score}`}>
-                            {submissions[currentSubmissionIndex]?.ai_score} points
-                          </span>
-                        </div>
+                  {/* Award Points Section */}
+                  <Card className="mb-6">
+                    <h3 className="text-lg font-bold mb-4">Award Points</h3>
+                    {selectedWinner ? (
+                      <div className="flex flex-wrap gap-3 justify-center">
+                        {[1, 2, 3, 4, 5].map((points) => (
+                          <Button
+                            key={points}
+                            onClick={() => handleAwardPoints(points)}
+                            disabled={awardingPoints}
+                            variant={points === 5 ? 'primary' : 'ghost'}
+                            size="lg"
+                            className="min-w-[80px]"
+                          >
+                            {points} pt{points !== 1 ? 's' : ''}
+                          </Button>
+                        ))}
                       </div>
+                    ) : (
+                      <p className="text-center text-[#FAFAF5]/50">
+                        Select a submission above to award points
+                      </p>
                     )}
                   </Card>
 
-                  <div className="flex justify-center">
-                    <Button onClick={handleNextSubmission} size="lg">
-                      {currentSubmissionIndex < submissions.length - 1 ? 'Next Submission' : 'Show Leaderboard'}
+                  <div className="flex justify-center gap-4">
+                    <Button onClick={handleSkipJudging} variant="ghost" size="lg">
+                      Skip (No Winner)
                     </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-20">
-                  <p className="text-xl text-[#FAFAF5]/60">No submissions this round</p>
-                  <Button onClick={handleShowLeaderboard} size="lg" className="mt-4">
-                    Show Leaderboard
-                  </Button>
-                </div>
+                </>
               )}
             </motion.div>
           )}

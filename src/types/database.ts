@@ -27,6 +27,8 @@ export interface Game {
   current_round: number;
   total_rounds: number;
   timer_seconds: number;
+  timer_started_at: string | null;  // ISO timestamp when timer was started
+  timer_paused_remaining: number | null;  // Seconds remaining when paused
   created_at: string;
 }
 

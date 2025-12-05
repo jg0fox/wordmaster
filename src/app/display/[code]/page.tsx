@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import type { Submission } from '@/types/database';
@@ -11,24 +11,51 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [showingSubmission, setShowingSubmission] = useState<number>(0);
+  const [submittedPlayerIds, setSubmittedPlayerIds] = useState<Set<string>>(new Set());
 
-  // Timer countdown
+  // Timer sync from server timestamp
   useEffect(() => {
-    if (game?.status === 'active' && game.timer_seconds) {
-      setTimeRemaining(game.timer_seconds);
-    }
-  }, [game?.current_round]);
+    if (!game || game.status !== 'active') return;
 
-  useEffect(() => {
-    if (game?.status !== 'active' || timeRemaining <= 0) return;
+    // Calculate time remaining from server timestamp
+    const calculateRemaining = () => {
+      if (game.timer_started_at) {
+        const elapsed = Math.floor((Date.now() - new Date(game.timer_started_at).getTime()) / 1000);
+        return Math.max(0, game.timer_seconds - elapsed);
+      } else if (game.timer_paused_remaining !== null) {
+        return game.timer_paused_remaining;
+      }
+      return game.timer_seconds;
+    };
 
+    setTimeRemaining(calculateRemaining());
+
+    // Update timer every 250ms for smooth sync
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => Math.max(0, prev - 1));
-    }, 1000);
+      if (game.timer_started_at) {
+        const remaining = calculateRemaining();
+        setTimeRemaining(remaining);
+      }
+    }, 250);
 
     return () => clearInterval(interval);
-  }, [game?.status, timeRemaining]);
+  }, [game?.status, game?.timer_started_at, game?.timer_seconds, game?.timer_paused_remaining, game?.current_round]);
+
+  // Fetch submissions periodically during active game to show who has submitted
+  const fetchCurrentSubmissions = useCallback(async () => {
+    if (!game || game.status !== 'active') return;
+    const subs = await fetchSubmissions();
+    setSubmittedPlayerIds(new Set(subs.map((s: Submission) => s.player_id)));
+  }, [game, fetchSubmissions]);
+
+  useEffect(() => {
+    if (game?.status === 'active') {
+      fetchCurrentSubmissions();
+      // Poll for new submissions every 3 seconds
+      const interval = setInterval(fetchCurrentSubmissions, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [game?.status, fetchCurrentSubmissions]);
 
   // Fetch leaderboard when needed
   useEffect(() => {
@@ -44,7 +71,6 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
     if (game?.status === 'judging') {
       fetchSubmissions().then((subs) => {
         setSubmissions(subs);
-        setShowingSubmission(0);
       });
     }
   }, [game?.status, fetchSubmissions]);
@@ -154,7 +180,7 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
               <motion.div
                 initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="scanlines rounded-2xl bg-[#FAFAF5]/5 p-12 border border-[#FFE500]/30"
+                className="scanlines rounded-2xl bg-[#FAFAF5]/5 p-12 border border-[#FFE500]/30 mb-8"
               >
                 <h2 className="text-4xl md:text-5xl font-bold text-[#FFE500] mb-6" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
                   {game.current_task.task.title}
@@ -164,67 +190,86 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                 </p>
               </motion.div>
             )}
+
+            {/* Submission Status */}
+            {game.game_players && game.game_players.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-8"
+              >
+                <p className="text-xl text-[#FAFAF5]/60 mb-4">
+                  Submissions: {submittedPlayerIds.size} / {game.game_players.length}
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {game.game_players.map((gp) => {
+                    const hasSubmitted = submittedPlayerIds.has(gp.player_id);
+                    return (
+                      <motion.div
+                        key={gp.id}
+                        animate={hasSubmitted ? { scale: [1, 1.1, 1] } : {}}
+                        transition={{ duration: 0.3 }}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                          hasSubmitted
+                            ? 'bg-[#22C55E]/20 border border-[#22C55E]/50'
+                            : 'bg-[#FAFAF5]/5 border border-[#FAFAF5]/20'
+                        }`}
+                      >
+                        <span className="text-2xl">{gp.player?.avatar || '👤'}</span>
+                        <span className={`text-lg ${hasSubmitted ? 'text-[#22C55E]' : 'text-[#FAFAF5]/60'}`}>
+                          {gp.player?.display_name}
+                        </span>
+                        {hasSubmitted && <span className="text-[#22C55E]">✓</span>}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
 
-        {/* Judging */}
-        {game.status === 'judging' && submissions.length > 0 && (
+        {/* Judging - Show all submissions for human judging */}
+        {game.status === 'judging' && (
           <motion.div
             key="judging"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center relative z-10 w-full max-w-4xl"
+            className="text-center relative z-10 w-full max-w-6xl"
           >
-            <motion.div
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              className="rounded-2xl bg-[#FAFAF5]/5 p-12 border-2 border-[#FFE500]/50"
-            >
-              <div className="flex items-center justify-center gap-4 mb-8">
-                <span className="text-6xl">{submissions[showingSubmission]?.player?.avatar || '👤'}</span>
-                <h2 className="text-4xl font-bold">
-                  {submissions[showingSubmission]?.player?.display_name}
-                </h2>
-              </div>
+            <h2 className="text-4xl font-bold text-[#FFE500] mb-8" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+              Time to Judge!
+            </h2>
 
-              <div className="bg-[#0A0A0F] rounded-xl p-8 mb-8 font-mono text-2xl text-left">
-                {submissions[showingSubmission]?.content}
-              </div>
-
-              {submissions[showingSubmission]?.ai_score && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-6"
-                >
-                  <div className="flex items-start gap-4 text-left">
-                    <span className="text-4xl">🎭</span>
-                    <p className="text-xl text-[#FAFAF5]/80 italic">
-                      "{submissions[showingSubmission]?.alex_quote}"
-                    </p>
-                  </div>
-
-                  <div className="flex items-start gap-4 text-left">
-                    <span className="text-4xl">👑</span>
-                    <p className="text-2xl text-[#FAFAF5] font-semibold">
-                      "{submissions[showingSubmission]?.greg_quote}"
-                    </p>
-                  </div>
-
+            {submissions.length === 0 ? (
+              <p className="text-2xl text-[#FAFAF5]/60">No submissions this round</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {submissions.map((submission, index) => (
                   <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", bounce: 0.5 }}
-                    className="pt-8"
+                    key={submission.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="rounded-2xl bg-[#FAFAF5]/5 p-6 border border-[#FFE500]/30 text-left"
                   >
-                    <span className={`inline-block px-12 py-6 rounded-full text-6xl font-bold score-${submissions[showingSubmission]?.ai_score}`}>
-                      {submissions[showingSubmission]?.ai_score}
-                    </span>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-4xl">{submission.player?.avatar || '👤'}</span>
+                      <div>
+                        <h3 className="text-2xl font-bold">{submission.player?.display_name}</h3>
+                        {submission.player?.team && (
+                          <p className="text-sm text-[#FAFAF5]/50">{submission.player.team.name}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-[#0A0A0F] rounded-xl p-4 font-mono text-lg">
+                      {submission.content}
+                    </div>
                   </motion.div>
-                </motion.div>
-              )}
-            </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
