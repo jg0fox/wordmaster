@@ -72,21 +72,42 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/games - List recent games (for admin/debug)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = createServiceClient();
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit') || '50');
 
-    const { data: games, error } = await supabase
+    let query = supabase
       .from('games')
-      .select('*')
+      .select(`
+        *,
+        game_players(count)
+      `)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(Math.min(limit, 100));
+
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    const { data: games, error } = await query;
 
     if (error) {
+      console.error('Error fetching games:', error);
       return NextResponse.json({ error: 'Failed to fetch games' }, { status: 500 });
     }
 
-    return NextResponse.json(games);
+    // Transform to include player count
+    const gamesWithCounts = games?.map(game => ({
+      ...game,
+      player_count: game.game_players?.[0]?.count || 0,
+      game_players: undefined, // Remove the raw data
+    })) || [];
+
+    return NextResponse.json(gamesWithCounts);
   } catch (error) {
     console.error('Error in GET /api/games:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
