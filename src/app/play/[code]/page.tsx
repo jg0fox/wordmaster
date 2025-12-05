@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import React, { use, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -138,13 +138,25 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   };
 
-  // Reset for new round
+  // Reset for new round - triggered when round changes while game is active
   useEffect(() => {
     if (game?.status === 'active') {
       setResponseText('');
       setMySubmission(null);
+      reset(); // Reset the submission hook state as well
     }
-  }, [game?.current_round]);
+  }, [game?.current_round, reset]);
+
+  // Also reset when transitioning from judging to active
+  const prevStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevStatusRef.current === 'judging' && game?.status === 'active') {
+      setResponseText('');
+      setMySubmission(null);
+      reset();
+    }
+    prevStatusRef.current = game?.status || null;
+  }, [game?.status, reset]);
 
   if (!game) {
     return (

@@ -43,13 +43,13 @@ export async function POST(
       return NextResponse.json({ error: 'Player not found' }, { status: 404 });
     }
 
-    // Check if already joined
+    // Check if already joined (use maybeSingle to avoid error when no match)
     const { data: existingJoin } = await supabase
       .from('game_players')
       .select('*')
       .eq('game_id', game.id)
       .eq('player_id', player_id)
-      .single();
+      .maybeSingle();
 
     if (existingJoin) {
       return NextResponse.json({

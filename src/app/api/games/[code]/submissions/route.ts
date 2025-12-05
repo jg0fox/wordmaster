@@ -12,8 +12,23 @@ export async function POST(
     const body = await request.json();
     const { player_id, content } = body;
 
-    if (!player_id || !content) {
-      return NextResponse.json({ error: 'player_id and content are required' }, { status: 400 });
+    // Validate inputs
+    if (!player_id || typeof player_id !== 'string') {
+      return NextResponse.json({ error: 'Valid player_id is required' }, { status: 400 });
+    }
+
+    if (!content || typeof content !== 'string') {
+      return NextResponse.json({ error: 'content is required' }, { status: 400 });
+    }
+
+    // Sanitize and validate content
+    const trimmedContent = content.trim();
+    if (trimmedContent.length === 0) {
+      return NextResponse.json({ error: 'content cannot be empty' }, { status: 400 });
+    }
+
+    if (trimmedContent.length > 5000) {
+      return NextResponse.json({ error: 'content exceeds maximum length of 5000 characters' }, { status: 400 });
     }
 
     // Get game
@@ -39,19 +54,19 @@ export async function POST(
       return NextResponse.json({ error: 'No active task' }, { status: 400 });
     }
 
-    // Check if player already submitted
+    // Check if player already submitted (use maybeSingle to avoid error when no match)
     const { data: existingSubmission } = await supabase
       .from('submissions')
       .select('*')
       .eq('game_task_id', gameTask.id)
       .eq('player_id', player_id)
-      .single();
+      .maybeSingle();
 
     if (existingSubmission) {
-      // Update existing submission
+      // Update existing submission (use trimmed content)
       const { data: updated, error: updateError } = await supabase
         .from('submissions')
-        .update({ content })
+        .update({ content: trimmedContent })
         .eq('id', existingSubmission.id)
         .select()
         .single();
@@ -63,13 +78,13 @@ export async function POST(
       return NextResponse.json(updated);
     }
 
-    // Create new submission
+    // Create new submission (use trimmed content)
     const { data: submission, error: submitError } = await supabase
       .from('submissions')
       .insert({
         game_task_id: gameTask.id,
         player_id,
-        content,
+        content: trimmedContent,
       })
       .select()
       .single();
@@ -110,13 +125,13 @@ export async function GET(
 
     const roundNumber = round ? parseInt(round) : game.current_round;
 
-    // Get game task for the round
+    // Get game task for the round (use maybeSingle for safe handling)
     const { data: gameTask } = await supabase
       .from('game_tasks')
       .select('*')
       .eq('game_id', game.id)
       .eq('round_number', roundNumber)
-      .single();
+      .maybeSingle();
 
     if (!gameTask) {
       return NextResponse.json({ submissions: [] });

@@ -8,16 +8,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, display_name, avatar, team_id } = body;
 
-    if (!email) {
+    // Validate email
+    if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: 'email is required' }, { status: 400 });
     }
 
-    // Check if player exists
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
+    }
+
+    if (trimmedEmail.length > 255) {
+      return NextResponse.json({ error: 'Email exceeds maximum length' }, { status: 400 });
+    }
+
+    // Check if player exists (use maybeSingle to avoid error when no match)
     const { data: existing } = await supabase
       .from('players')
       .select('*, team:teams(*)')
-      .eq('email', email.toLowerCase())
-      .single();
+      .eq('email', trimmedEmail)
+      .maybeSingle();
 
     if (existing) {
       // Update if new info provided
@@ -40,16 +53,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(existing);
     }
 
-    // Create new player
-    if (!display_name) {
+    // Create new player - validate display_name
+    if (!display_name || typeof display_name !== 'string') {
       return NextResponse.json({ error: 'display_name is required for new players' }, { status: 400 });
+    }
+
+    const trimmedName = display_name.trim();
+    if (trimmedName.length === 0) {
+      return NextResponse.json({ error: 'display_name cannot be empty' }, { status: 400 });
+    }
+
+    if (trimmedName.length > 50) {
+      return NextResponse.json({ error: 'display_name exceeds maximum length of 50 characters' }, { status: 400 });
+    }
+
+    // Validate avatar if provided
+    if (avatar && typeof avatar === 'string' && avatar.length > 50) {
+      return NextResponse.json({ error: 'avatar exceeds maximum length' }, { status: 400 });
     }
 
     const { data: player, error } = await supabase
       .from('players')
       .insert({
-        email: email.toLowerCase(),
-        display_name,
+        email: trimmedEmail,
+        display_name: trimmedName,
         avatar: avatar || null,
         team_id: team_id || null,
       })
@@ -76,12 +103,12 @@ export async function GET(request: NextRequest) {
     const email = searchParams.get('email');
 
     if (email) {
-      // Get player by email
+      // Get player by email (use maybeSingle to avoid error when no match)
       const { data: player } = await supabase
         .from('players')
         .select('*, team:teams(*)')
         .eq('email', email.toLowerCase())
-        .single();
+        .maybeSingle();
 
       if (!player) {
         return NextResponse.json({ error: 'Player not found' }, { status: 404 });

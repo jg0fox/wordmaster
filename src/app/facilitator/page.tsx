@@ -140,6 +140,8 @@ export default function FacilitatorPage() {
     setShowCancelConfirm(false);
   };
 
+  const [timerExpired, setTimerExpired] = useState(false);
+
   // Timer sync - calculate from server timestamp
   useEffect(() => {
     if (!game || !timerRunning) return;
@@ -151,12 +153,25 @@ export default function FacilitatorPage() {
         setTimeRemaining(remaining);
         if (remaining <= 0) {
           setTimerRunning(false);
+          setTimerExpired(true);
         }
       }
     }, 250); // More frequent updates for better sync
 
     return () => clearInterval(interval);
   }, [game, timerRunning]);
+
+  // Auto-transition to judging when timer expires (after 3 second delay)
+  useEffect(() => {
+    if (!timerExpired || view !== 'playing') return;
+
+    const timeout = setTimeout(() => {
+      handleEndRound();
+      setTimerExpired(false);
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, [timerExpired, view]);
 
   // Handle game status changes
   useEffect(() => {
@@ -636,13 +651,24 @@ export default function FacilitatorPage() {
 
               {/* Timer */}
               <Card variant="glow" className="text-center mb-6">
-                <p className={`text-7xl font-mono font-bold ${
-                  timeRemaining <= 30 ? 'text-[#FF2E6C]' :
-                  timeRemaining <= 60 ? 'text-[#F59E0B]' :
-                  'text-[#FFE500]'
-                }`}>
-                  {formatTime(timeRemaining)}
-                </p>
+                {timerExpired ? (
+                  <motion.div
+                    initial={{ scale: 0.5 }}
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                  >
+                    <p className="text-5xl font-bold text-[#FF2E6C] mb-2">TIME&apos;S UP!</p>
+                    <p className="text-lg text-[#FAFAF5]/60">Moving to judging in 3 seconds...</p>
+                  </motion.div>
+                ) : (
+                  <p className={`text-7xl font-mono font-bold ${
+                    timeRemaining <= 30 ? 'text-[#FF2E6C]' :
+                    timeRemaining <= 60 ? 'text-[#F59E0B]' :
+                    'text-[#FFE500]'
+                  }`}>
+                    {formatTime(timeRemaining)}
+                  </p>
+                )}
               </Card>
 
               {/* Current Task */}

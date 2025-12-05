@@ -1,8 +1,39 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useGameChannel } from './useGameChannel';
 import type { GameWithPlayers, GamePlayer, Player, Submission } from '@/types/database';
+
+// Utility function for fetch with retry and exponential backoff
+async function fetchWithRetry(
+  url: string,
+  options?: RequestInit,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok || response.status === 404 || response.status === 400) {
+        // Don't retry client errors or success
+        return response;
+      }
+      // Server error - retry
+      throw new Error(`Server error: ${response.status}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('Unknown error');
+      if (attempt < maxRetries - 1) {
+        // Exponential backoff with jitter
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error('Max retries exceeded');
+}
 
 interface UseGameStateOptions {
   code: string;
@@ -13,22 +44,37 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
   const [game, setGame] = useState<GameWithPlayers | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const retryCountRef = useRef(0);
 
-  const fetchGame = useCallback(async () => {
+  const fetchGame = useCallback(async (retry = false) => {
     if (!code) return;
 
+    if (retry) {
+      setIsRetrying(true);
+    }
+
     try {
-      const response = await fetch(`/api/games/${code}`);
+      const response = await fetchWithRetry(`/api/games/${code}`);
       if (!response.ok) {
         throw new Error('Game not found');
       }
       const data = await response.json();
       setGame(data);
       setError(null);
+      retryCountRef.current = 0;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch game');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch game';
+      setError(errorMessage);
+
+      // Auto-retry on network errors (up to 3 times)
+      if (retryCountRef.current < 3 && errorMessage.includes('Server error')) {
+        retryCountRef.current++;
+        setTimeout(() => fetchGame(true), 2000 * retryCountRef.current);
+      }
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   }, [code]);
 
@@ -152,10 +198,15 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
     }
   }, [code]);
 
+  // Clear error function
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     game,
     loading,
     error,
+    isRetrying,
+    clearError,
     refresh: fetchGame,
     updateGame,
     startGame,
@@ -330,25 +381,36 @@ export function useSubmission(code: string, playerId: string) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = useCallback(async (content: string) => {
-    if (!code || !playerId || !content) return null;
+    if (!code || !playerId || !content) {
+      setError('Missing required fields');
+      return null;
+    }
 
     setSubmitting(true);
+    setError(null);
+
     try {
-      const response = await fetch(`/api/games/${code}/submissions`, {
+      const response = await fetchWithRetry(`/api/games/${code}/submissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player_id: playerId, content }),
       });
 
-      if (!response.ok) throw new Error('Failed to submit');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to submit');
+      }
 
       const data = await response.json();
       setSubmission(data);
       setSubmitted(true);
       return data;
-    } catch {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit';
+      setError(errorMessage);
       return null;
     } finally {
       setSubmitting(false);
@@ -358,13 +420,18 @@ export function useSubmission(code: string, playerId: string) {
   const reset = useCallback(() => {
     setSubmitted(false);
     setSubmission(null);
+    setError(null);
   }, []);
+
+  const clearError = useCallback(() => setError(null), []);
 
   return {
     submit,
     submitting,
     submitted,
     submission,
+    error,
     reset,
+    clearError,
   };
 }

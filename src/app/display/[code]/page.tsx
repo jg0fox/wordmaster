@@ -9,6 +9,7 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
   const { code } = use(params);
   const { game, fetchLeaderboard, fetchSubmissions } = useGameState({ code, autoRefresh: true });
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timerExpired, setTimerExpired] = useState(false);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [submittedPlayerIds, setSubmittedPlayerIds] = useState<Set<string>>(new Set());
@@ -35,11 +36,21 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
       if (game.timer_started_at) {
         const remaining = calculateRemaining();
         setTimeRemaining(remaining);
+        if (remaining <= 0 && !timerExpired) {
+          setTimerExpired(true);
+        }
       }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [game?.status, game?.timer_started_at, game?.timer_seconds, game?.timer_paused_remaining, game?.current_round]);
+  }, [game?.status, game?.timer_started_at, game?.timer_seconds, game?.timer_paused_remaining, game?.current_round, timerExpired]);
+
+  // Reset timer expired state when moving to a new round or status changes
+  useEffect(() => {
+    if (game?.status !== 'active') {
+      setTimerExpired(false);
+    }
+  }, [game?.status, game?.current_round]);
 
   // Fetch submissions periodically during active game to show who has submitted
   const fetchCurrentSubmissions = useCallback(async () => {
@@ -163,17 +174,30 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
             </p>
 
             {/* Timer */}
-            <motion.div
-              className={`text-[14rem] font-mono font-bold mb-8 ${
-                timeRemaining <= 30 ? 'text-[#FF2E6C]' :
-                timeRemaining <= 60 ? 'text-[#F59E0B]' :
-                'text-[#FFE500]'
-              }`}
-              animate={timeRemaining <= 10 ? { scale: [1, 1.05, 1] } : {}}
-              transition={{ duration: 1, repeat: timeRemaining <= 10 ? Infinity : 0 }}
-            >
-              {formatTime(timeRemaining)}
-            </motion.div>
+            {timerExpired ? (
+              <motion.div
+                initial={{ scale: 0.5 }}
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.8, repeat: Infinity }}
+                className="mb-8"
+              >
+                <p className="text-[8rem] font-bold text-[#FF2E6C]" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                  TIME&apos;S UP!
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                className={`text-[14rem] font-mono font-bold mb-8 ${
+                  timeRemaining <= 30 ? 'text-[#FF2E6C]' :
+                  timeRemaining <= 60 ? 'text-[#F59E0B]' :
+                  'text-[#FFE500]'
+                }`}
+                animate={timeRemaining <= 10 ? { scale: [1, 1.05, 1] } : {}}
+                transition={{ duration: 1, repeat: timeRemaining <= 10 ? Infinity : 0 }}
+              >
+                {formatTime(timeRemaining)}
+              </motion.div>
+            )}
 
             {/* Task */}
             {game.current_task?.task && (
