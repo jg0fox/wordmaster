@@ -72,11 +72,24 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
 
   // Fetch leaderboard when needed
   useEffect(() => {
-    if (game?.status === 'completed' || game?.status === 'judging') {
+    if (game?.status === 'completed' || game?.status === 'leaderboard') {
       fetchLeaderboard().then((lb) => {
         if (lb) setLeaderboard(lb.leaderboard);
       });
     }
+  }, [game?.status, fetchLeaderboard]);
+
+  // Poll leaderboard during leaderboard state to catch score updates
+  useEffect(() => {
+    if (game?.status !== 'leaderboard') return;
+
+    const interval = setInterval(() => {
+      fetchLeaderboard().then((lb) => {
+        if (lb) setLeaderboard(lb.leaderboard);
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
   }, [game?.status, fetchLeaderboard]);
 
   // Fetch submissions when judging
@@ -296,6 +309,55 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                 ))}
               </div>
             )}
+          </motion.div>
+        )}
+
+        {/* Leaderboard - Show Rankings */}
+        {game.status === 'leaderboard' && (
+          <motion.div
+            key="leaderboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-center relative z-10 w-full max-w-4xl"
+          >
+            <motion.h2
+              initial={{ y: -30 }}
+              animate={{ y: 0 }}
+              className="text-5xl font-bold text-[#FFE500] mb-8"
+              style={{ fontFamily: 'var(--font-space-grotesk)' }}
+            >
+              Leaderboard
+            </motion.h2>
+
+            <p className="text-2xl text-[#FAFAF5]/60 mb-8">
+              Round {game.current_round} of {game.total_rounds}
+            </p>
+
+            <div className="space-y-4">
+              {leaderboard.map((entry, index) => (
+                <motion.div
+                  key={entry.display_name}
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`flex items-center gap-6 p-6 rounded-2xl ${
+                    index === 0
+                      ? 'bg-[#FFE500]/20 border-2 border-[#FFE500]/50'
+                      : 'bg-[#FAFAF5]/5 border border-[#FAFAF5]/10'
+                  }`}
+                >
+                  <span className="text-4xl font-bold w-16 text-center">
+                    {index === 0 ? '👑' : `#${entry.rank}`}
+                  </span>
+                  <span className="text-5xl">{entry.avatar || '👤'}</span>
+                  <span className="flex-1 text-3xl font-semibold">{entry.display_name}</span>
+                  <span className={`text-5xl font-bold ${index === 0 ? 'text-[#FFE500]' : 'text-[#FAFAF5]'}`}>
+                    {entry.score}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         )}
 

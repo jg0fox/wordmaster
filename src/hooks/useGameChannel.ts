@@ -8,6 +8,7 @@ interface UseGameChannelOptions {
   gameId: string;
   onPlayerJoined?: (payload: unknown) => void;
   onPlayerLeft?: (payload: unknown) => void;
+  onPlayerScoreUpdated?: (payload: unknown) => void;
   onGameUpdated?: (payload: unknown) => void;
   onSubmissionReceived?: (payload: unknown) => void;
 }
@@ -16,6 +17,7 @@ export function useGameChannel({
   gameId,
   onPlayerJoined,
   onPlayerLeft,
+  onPlayerScoreUpdated,
   onGameUpdated,
   onSubmissionReceived,
 }: UseGameChannelOptions) {
@@ -26,6 +28,7 @@ export function useGameChannel({
     onGameUpdated,
     onPlayerJoined,
     onPlayerLeft,
+    onPlayerScoreUpdated,
     onSubmissionReceived,
   });
 
@@ -35,6 +38,7 @@ export function useGameChannel({
       onGameUpdated,
       onPlayerJoined,
       onPlayerLeft,
+      onPlayerScoreUpdated,
       onSubmissionReceived,
     };
   });
@@ -84,6 +88,18 @@ export function useGameChannel({
         },
         (payload) => {
           callbacksRef.current.onPlayerLeft?.(payload);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'game_players',
+          filter: `game_id=eq.${gameId}`,
+        },
+        (payload) => {
+          callbacksRef.current.onPlayerScoreUpdated?.(payload);
         }
       )
       .on(

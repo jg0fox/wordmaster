@@ -29,6 +29,8 @@ export default function FacilitatorPage() {
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [creatingTeam, setCreatingTeam] = useState(false);
+  const [aiAssistLoading, setAiAssistLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, { score: number; greg_quote: string; alex_quote: string }>>({});
 
   const { activeGameCode, loading: sessionLoading, setActiveGame, clearActiveGame } = useFacilitatorSession();
 
@@ -190,10 +192,16 @@ export default function FacilitatorPage() {
       }
     } else if (game.status === 'judging') {
       setView('judging');
+    } else if (game.status === 'leaderboard') {
+      setView('leaderboard');
+      // Fetch leaderboard data if not already loaded
+      fetchLeaderboard().then((lb) => {
+        if (lb) setLeaderboard(lb.leaderboard);
+      });
     } else if (game.status === 'completed') {
       setView('winner');
     }
-  }, [game?.status, game?.current_round, game?.timer_started_at, game?.timer_paused_remaining]);
+  }, [game?.status, game?.current_round, game?.timer_started_at, game?.timer_paused_remaining, fetchLeaderboard]);
 
   // Start the game
   const handleStartGame = async () => {
@@ -262,6 +270,7 @@ export default function FacilitatorPage() {
     const subs = await fetchSubmissions();
     setSubmissions(subs);
     setSelectedWinner(null);
+    setAiSuggestions({}); // Reset AI suggestions for new round
     setView('judging');
   };
 
@@ -291,8 +300,48 @@ export default function FacilitatorPage() {
     await handleShowLeaderboard();
   };
 
-  // Show leaderboard
+  // AI Assist - get optional AI suggestions for judging
+  const handleAiAssist = async () => {
+    if (!gameCode || aiAssistLoading) return;
+
+    setAiAssistLoading(true);
+    try {
+      const response = await fetch(`/api/games/${gameCode}/judge`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) throw new Error('Failed to get AI suggestions');
+
+      const data = await response.json();
+
+      // Build suggestions map from judged submissions
+      const suggestions: Record<string, { score: number; greg_quote: string; alex_quote: string }> = {};
+      if (data.judged) {
+        for (const judged of data.judged) {
+          suggestions[judged.player_id] = {
+            score: judged.ai_score || 3,
+            greg_quote: judged.greg_quote || '',
+            alex_quote: judged.alex_quote || '',
+          };
+        }
+      }
+      setAiSuggestions(suggestions);
+
+      // Refetch submissions to get updated AI scores
+      const subs = await fetchSubmissions();
+      setSubmissions(subs);
+    } catch (error) {
+      console.error('Error getting AI suggestions:', error);
+    } finally {
+      setAiAssistLoading(false);
+    }
+  };
+
+  // Show leaderboard - transition game status so all clients sync
   const handleShowLeaderboard = async () => {
+    // Update game status to leaderboard so display and players sync
+    await updateGame({ status: 'leaderboard' });
+
     const lb = await fetchLeaderboard();
     if (lb) {
       setLeaderboard(lb.leaderboard);
@@ -712,9 +761,21 @@ export default function FacilitatorPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <h2 className="text-2xl font-bold text-center mb-6" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                Choose a Winner
-              </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                  Choose a Winner
+                </h2>
+                {submissions.length > 0 && (
+                  <Button
+                    onClick={handleAiAssist}
+                    disabled={aiAssistLoading || Object.keys(aiSuggestions).length > 0}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    {aiAssistLoading ? '🤖 Thinking...' : Object.keys(aiSuggestions).length > 0 ? '🤖 AI Assisted' : '🤖 AI Assist'}
+                  </Button>
+                )}
+              </div>
 
               {submissions.length === 0 ? (
                 <div className="text-center py-20">
@@ -726,35 +787,66 @@ export default function FacilitatorPage() {
               ) : (
                 <>
                   <div className="space-y-4 mb-8">
-                    {submissions.map((submission) => (
-                      <Card
-                        key={submission.id}
-                        className={`cursor-pointer transition-all ${
-                          selectedWinner === submission.player_id
-                            ? 'ring-2 ring-[#FFE500] bg-[#FFE500]/10'
-                            : 'hover:bg-[#FAFAF5]/5'
-                        }`}
-                        onClick={() => setSelectedWinner(submission.player_id)}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="flex items-center gap-3">
-                            <span className="text-3xl">{submission.player?.avatar || '👤'}</span>
-                            <div>
-                              <h3 className="font-bold">{submission.player?.display_name}</h3>
-                              {submission.player?.team && (
-                                <p className="text-xs text-[#FAFAF5]/50">{submission.player.team.name}</p>
+                    {submissions.map((submission) => {
+                      const aiSuggestion = aiSuggestions[submission.player_id] || (submission.ai_score ? {
+                        score: submission.ai_score,
+                        greg_quote: submission.greg_quote || '',
+                        alex_quote: submission.alex_quote || '',
+                      } : null);
+
+                      return (
+                        <Card
+                          key={submission.id}
+                          className={`cursor-pointer transition-all ${
+                            selectedWinner === submission.player_id
+                              ? 'ring-2 ring-[#FFE500] bg-[#FFE500]/10'
+                              : 'hover:bg-[#FAFAF5]/5'
+                          }`}
+                          onClick={() => setSelectedWinner(submission.player_id)}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-3xl">{submission.player?.avatar || '👤'}</span>
+                              <div>
+                                <h3 className="font-bold">{submission.player?.display_name}</h3>
+                                {submission.player?.team && (
+                                  <p className="text-xs text-[#FAFAF5]/50">{submission.player.team.name}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="ml-auto flex items-center gap-2">
+                              {aiSuggestion && (
+                                <span className="text-sm px-2 py-1 rounded bg-[#2D1B69]/50 text-[#FAFAF5]/70">
+                                  🤖 {aiSuggestion.score}/5
+                                </span>
+                              )}
+                              {selectedWinner === submission.player_id && (
+                                <span className="text-[#FFE500] text-2xl">✓</span>
                               )}
                             </div>
                           </div>
-                          {selectedWinner === submission.player_id && (
-                            <span className="ml-auto text-[#FFE500] text-2xl">✓</span>
+                          <div className="mt-4 bg-[#0A0A0F] rounded-lg p-4 font-mono text-sm">
+                            {submission.content}
+                          </div>
+
+                          {/* AI Commentary (if available) */}
+                          {aiSuggestion && (aiSuggestion.greg_quote || aiSuggestion.alex_quote) && (
+                            <div className="mt-3 pt-3 border-t border-[#FAFAF5]/10 text-sm">
+                              {aiSuggestion.greg_quote && (
+                                <p className="text-[#FAFAF5]/60 mb-1">
+                                  <span className="text-[#FF2E6C]">Greg:</span> {aiSuggestion.greg_quote}
+                                </p>
+                              )}
+                              {aiSuggestion.alex_quote && (
+                                <p className="text-[#FAFAF5]/60">
+                                  <span className="text-[#2D1B69]">Alex:</span> {aiSuggestion.alex_quote}
+                                </p>
+                              )}
+                            </div>
                           )}
-                        </div>
-                        <div className="mt-4 bg-[#0A0A0F] rounded-lg p-4 font-mono text-sm">
-                          {submission.content}
-                        </div>
-                      </Card>
-                    ))}
+                        </Card>
+                      );
+                    })}
                   </div>
 
                   {/* Award Points Section */}

@@ -14,6 +14,7 @@ const STATUS_COLORS: Record<GameStatus, string> = {
   lobby: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
   active: 'bg-green-500/20 text-green-400 border-green-500/50',
   judging: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+  leaderboard: 'bg-orange-500/20 text-orange-400 border-orange-500/50',
   reflection: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
   completed: 'bg-gray-500/20 text-gray-400 border-gray-500/50',
 };
@@ -140,8 +141,8 @@ export default function AdminPage() {
         </Card>
 
         {/* Filter */}
-        <div className="flex gap-2 mb-6">
-          {(['all', 'lobby', 'active', 'judging', 'completed'] as const).map((status) => (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {(['all', 'lobby', 'active', 'judging', 'leaderboard', 'completed'] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}

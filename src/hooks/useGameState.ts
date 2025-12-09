@@ -95,6 +95,9 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
     onPlayerLeft: () => {
       if (autoRefresh) fetchGame();
     },
+    onPlayerScoreUpdated: () => {
+      if (autoRefresh) fetchGame();
+    },
     onSubmissionReceived: () => {
       if (autoRefresh) fetchGame();
     },
@@ -104,8 +107,8 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
   useEffect(() => {
     if (!autoRefresh || !game) return;
 
-    // Poll more frequently for active/judging games, less for lobby/completed
-    const pollInterval = (game.status === 'active' || game.status === 'judging')
+    // Poll more frequently for active/judging/leaderboard games, less for lobby/completed
+    const pollInterval = (game.status === 'active' || game.status === 'judging' || game.status === 'leaderboard')
       ? 3000
       : 10000;
 

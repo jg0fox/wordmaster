@@ -8,13 +8,13 @@ import { Card } from '@/components/ui/Card';
 import { useGameState, usePlayer, useSubmission } from '@/hooks/useGameState';
 import type { Team, Submission } from '@/types/database';
 
-type PlayerView = 'auth' | 'waiting' | 'playing' | 'submitted' | 'results' | 'leaderboard';
+type PlayerView = 'auth' | 'waiting' | 'playing' | 'submitted' | 'results' | 'leaderboard' | 'winner';
 
 const AVATARS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🐸', '🦉', '🐼', '🦋', '🌟', '🔥', '💡', '🎯', '✨'];
 
 export default function PlayerGamePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
-  const { game, fetchSubmissions } = useGameState({ code, autoRefresh: true });
+  const { game, fetchSubmissions, fetchLeaderboard } = useGameState({ code, autoRefresh: true });
   const { player, loading: playerLoading, login, register } = usePlayer();
   const { submit, submitting, submitted, submission, reset } = useSubmission(code, player?.id || '');
 
@@ -31,6 +31,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
   const [joinedGame, setJoinedGame] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerExpired, setTimerExpired] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
 
   // Load teams
   useEffect(() => {
@@ -116,11 +117,23 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
       } else {
         setView('playing');
       }
-    } else if (game.status === 'judging' || game.status === 'completed') {
+    } else if (game.status === 'judging') {
       fetchMySubmission();
       setView('results');
+    } else if (game.status === 'leaderboard') {
+      // Fetch and show leaderboard
+      fetchLeaderboard().then((lb) => {
+        if (lb) setLeaderboard(lb.leaderboard);
+      });
+      setView('leaderboard');
+    } else if (game.status === 'completed') {
+      // Show winner view
+      fetchLeaderboard().then((lb) => {
+        if (lb) setLeaderboard(lb.leaderboard);
+      });
+      setView('winner');
     }
-  }, [game?.status, game?.current_round, player, submitted, mySubmission, reset]);
+  }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard]);
 
   // Join game
   const joinGame = async () => {
@@ -461,6 +474,119 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                     <p className="font-mono text-sm">{mySubmission.content}</p>
                   </div>
                 )}
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Leaderboard View */}
+          {view === 'leaderboard' && (
+            <motion.div
+              key="leaderboard"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card>
+                <h2 className="text-xl font-bold text-center text-[#FFE500] mb-4" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                  Leaderboard
+                </h2>
+                <p className="text-center text-[#FAFAF5]/60 mb-4">
+                  Round {game?.current_round} of {game?.total_rounds}
+                </p>
+
+                <div className="space-y-2">
+                  {leaderboard.map((entry, index) => {
+                    const isMe = player && entry.display_name === player.display_name;
+                    return (
+                      <motion.div
+                        key={entry.display_name}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`flex items-center gap-3 p-3 rounded-lg ${
+                          isMe
+                            ? 'bg-[#FFE500]/20 border border-[#FFE500]/50'
+                            : index === 0
+                            ? 'bg-[#FAFAF5]/10'
+                            : 'bg-[#FAFAF5]/5'
+                        }`}
+                      >
+                        <span className="text-lg font-bold w-8">
+                          {index === 0 ? '👑' : `#${entry.rank}`}
+                        </span>
+                        <span className="text-xl">{entry.avatar || '👤'}</span>
+                        <span className={`flex-1 font-medium ${isMe ? 'text-[#FFE500]' : ''}`}>
+                          {entry.display_name}
+                          {isMe && <span className="text-xs ml-1">(you)</span>}
+                        </span>
+                        <span className="text-xl font-bold">{entry.score}</span>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-center text-[#FAFAF5]/50 text-sm mt-4">
+                  Waiting for next round...
+                </p>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Winner View */}
+          {view === 'winner' && (
+            <motion.div
+              key="winner"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="text-center"
+            >
+              <Card>
+                <motion.div
+                  animate={{
+                    rotate: [0, 10, -10, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 0.5, repeat: 3 }}
+                  className="text-6xl mb-4"
+                >
+                  🏆
+                </motion.div>
+
+                <h2 className="text-xl font-bold text-[#FFE500] mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                  Game Over!
+                </h2>
+
+                {leaderboard[0] && (
+                  <div className="mb-4">
+                    <p className="text-[#FAFAF5]/60 mb-1">Winner</p>
+                    <p className="text-2xl font-bold">{leaderboard[0].display_name}</p>
+                    <p className="text-[#FAFAF5]/60">{leaderboard[0].score} points</p>
+                  </div>
+                )}
+
+                {/* Show player's rank */}
+                {player && leaderboard.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-[#FAFAF5]/10">
+                    {(() => {
+                      const myRank = leaderboard.findIndex(e => e.display_name === player.display_name);
+                      const myEntry = leaderboard[myRank];
+                      if (myRank === -1 || !myEntry) return null;
+                      return (
+                        <div className={`p-3 rounded-lg ${myRank === 0 ? 'bg-[#FFE500]/20' : 'bg-[#FAFAF5]/5'}`}>
+                          <p className="text-sm text-[#FAFAF5]/60 mb-1">Your result</p>
+                          <p className="text-lg font-bold">
+                            {myRank === 0 ? '🏆 You won!' : `#${myRank + 1} - ${myEntry.score} points`}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <p className="text-[#FAFAF5]/50 text-sm mt-4">
+                  Thanks for playing!
+                </p>
               </Card>
             </motion.div>
           )}

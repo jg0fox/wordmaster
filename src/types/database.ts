@@ -1,6 +1,6 @@
 // Database types for Wordwrangler
 
-export type GameStatus = 'lobby' | 'active' | 'judging' | 'reflection' | 'completed';
+export type GameStatus = 'lobby' | 'active' | 'judging' | 'leaderboard' | 'reflection' | 'completed';
 
 export interface Team {
   id: string;
