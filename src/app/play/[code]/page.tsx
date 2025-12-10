@@ -125,6 +125,25 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard]);
 
+  // Poll leaderboard during leaderboard/winner state to catch score updates
+  useEffect(() => {
+    if (game?.status !== 'leaderboard' && game?.status !== 'completed') return;
+
+    // Fetch immediately
+    fetchLeaderboard().then((lb) => {
+      if (lb) setLeaderboard(lb.leaderboard);
+    });
+
+    // Then poll every 2 seconds
+    const interval = setInterval(() => {
+      fetchLeaderboard().then((lb) => {
+        if (lb) setLeaderboard(lb.leaderboard);
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [game?.status, fetchLeaderboard]);
+
   // Join game - accepts optional playerId for immediate use after registration
   const joinGame = async (playerId?: string) => {
     const pid = playerId || player?.id;
@@ -476,36 +495,48 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                   Round {game?.current_round} of {game?.total_rounds}
                 </p>
 
-                <div className="space-y-2">
-                  {leaderboard.map((entry, index) => {
-                    const isMe = player && entry.display_name === player.display_name;
-                    return (
-                      <motion.div
-                        key={entry.display_name}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`flex items-center gap-3 p-3 rounded-lg ${
-                          isMe
-                            ? 'bg-[#FFE500]/20 border border-[#FFE500]/50'
-                            : index === 0
-                            ? 'bg-[#FAFAF5]/10'
-                            : 'bg-[#FAFAF5]/5'
-                        }`}
-                      >
-                        <span className="text-lg font-bold w-8">
-                          {index === 0 ? '👑' : `#${entry.rank}`}
-                        </span>
-                        <span className="text-xl">{entry.avatar || '👤'}</span>
-                        <span className={`flex-1 font-medium ${isMe ? 'text-[#FFE500]' : ''}`}>
-                          {entry.display_name}
-                          {isMe && <span className="text-xs ml-1">(you)</span>}
-                        </span>
-                        <span className="text-xl font-bold">{entry.score}</span>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                {leaderboard.length === 0 ? (
+                  <div className="text-center py-8">
+                    <motion.div
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="text-[#FAFAF5]/60"
+                    >
+                      Loading scores...
+                    </motion.div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {leaderboard.map((entry, index) => {
+                      const isMe = player && entry.display_name === player.display_name;
+                      return (
+                        <motion.div
+                          key={entry.display_name}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className={`flex items-center gap-3 p-3 rounded-lg ${
+                            isMe
+                              ? 'bg-[#FFE500]/20 border border-[#FFE500]/50'
+                              : index === 0
+                              ? 'bg-[#FAFAF5]/10'
+                              : 'bg-[#FAFAF5]/5'
+                          }`}
+                        >
+                          <span className="text-lg font-bold w-8">
+                            {index === 0 ? '👑' : `#${entry.rank}`}
+                          </span>
+                          <span className="text-xl">{entry.avatar || '👤'}</span>
+                          <span className={`flex-1 font-medium ${isMe ? 'text-[#FFE500]' : ''}`}>
+                            {entry.display_name}
+                            {isMe && <span className="text-xs ml-1">(you)</span>}
+                          </span>
+                          <span className="text-xl font-bold">{entry.score}</span>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <p className="text-center text-[#FAFAF5]/50 text-sm mt-4">
                   Waiting for next round...

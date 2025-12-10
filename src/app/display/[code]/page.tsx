@@ -331,30 +331,42 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
               Round {game.current_round} of {game.total_rounds}
             </p>
 
-            <div className="space-y-4">
-              {leaderboard.map((entry, index) => (
+            {leaderboard.length === 0 ? (
+              <div className="text-center py-16">
                 <motion.div
-                  key={entry.display_name}
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`flex items-center gap-6 p-6 rounded-2xl ${
-                    index === 0
-                      ? 'bg-[#FFE500]/20 border-2 border-[#FFE500]/50'
-                      : 'bg-[#FAFAF5]/5 border border-[#FAFAF5]/10'
-                  }`}
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="text-3xl text-[#FAFAF5]/60"
                 >
-                  <span className="text-4xl font-bold w-16 text-center">
-                    {index === 0 ? '👑' : `#${entry.rank}`}
-                  </span>
-                  <span className="text-5xl">{entry.avatar || '👤'}</span>
-                  <span className="flex-1 text-3xl font-semibold">{entry.display_name}</span>
-                  <span className={`text-5xl font-bold ${index === 0 ? 'text-[#FFE500]' : 'text-[#FAFAF5]'}`}>
-                    {entry.score}
-                  </span>
+                  Loading scores...
                 </motion.div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {leaderboard.map((entry, index) => (
+                  <motion.div
+                    key={entry.display_name}
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`flex items-center gap-6 p-6 rounded-2xl ${
+                      index === 0
+                        ? 'bg-[#FFE500]/20 border-2 border-[#FFE500]/50'
+                        : 'bg-[#FAFAF5]/5 border border-[#FAFAF5]/10'
+                    }`}
+                  >
+                    <span className="text-4xl font-bold w-16 text-center">
+                      {index === 0 ? '👑' : `#${entry.rank}`}
+                    </span>
+                    <span className="text-5xl">{entry.avatar || '👤'}</span>
+                    <span className="flex-1 text-3xl font-semibold">{entry.display_name}</span>
+                    <span className={`text-5xl font-bold ${index === 0 ? 'text-[#FFE500]' : 'text-[#FAFAF5]'}`}>
+                      {entry.score}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
