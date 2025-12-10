@@ -125,15 +125,16 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard]);
 
-  // Join game
-  const joinGame = async () => {
-    if (!player || !game || joinedGame) return;
+  // Join game - accepts optional playerId for immediate use after registration
+  const joinGame = async (playerId?: string) => {
+    const pid = playerId || player?.id;
+    if (!pid || !game || joinedGame) return;
 
     try {
       await fetch(`/api/games/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: player.id }),
+        body: JSON.stringify({ player_id: pid }),
       });
       setJoinedGame(true);
     } catch (error) {
@@ -150,7 +151,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
 
     if (existingPlayer) {
       setView('waiting');
-      joinGame();
+      joinGame(existingPlayer.id);
     } else {
       setIsNewPlayer(true);
     }
@@ -170,7 +171,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
 
     if (newPlayer) {
       setView('waiting');
-      joinGame();
+      joinGame(newPlayer.id);
     }
     setAuthLoading(false);
   };
