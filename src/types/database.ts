@@ -69,6 +69,7 @@ export interface Submission {
 export interface GameWithPlayers extends Game {
   game_players: (GamePlayer & { player: Player })[];
   current_task?: GameTask & { task: Task };
+  game_tasks?: (GameTask & { task: Task })[];
 }
 
 export interface LeaderboardEntry {
