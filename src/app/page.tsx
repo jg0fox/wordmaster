@@ -64,7 +64,7 @@ export default function HomePage() {
           transition={{ delay: 0.8 }}
           className="mt-16 text-sm text-[#FAFAF5]/40"
         >
-          A Taskmaster-style party game for UX writers
+          A Taskmaster-style party game for content designers
         </motion.p>
       </motion.div>
 

@@ -23,7 +23,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Wordwrangler",
-  description: "Creative chaos for content designers - A Taskmaster-style game for UX writers",
+  description: "Creative chaos for content designers",
   keywords: ["content design", "UX writing", "party game", "team building"],
 };
 

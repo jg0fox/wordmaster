@@ -31,6 +31,7 @@ export default function FacilitatorPage() {
   const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [usedTaskIds, setUsedTaskIds] = useState<Set<string>>(new Set());
+  const [submittedPlayerIds, setSubmittedPlayerIds] = useState<Set<string>>(new Set());
 
   const { activeGameCode, loading: sessionLoading, setActiveGame, clearActiveGame } = useFacilitatorSession();
 
@@ -208,6 +209,29 @@ export default function FacilitatorPage() {
       setUsedTaskIds(used);
     }
   }, [game?.game_tasks]);
+
+  // Reset submitted player IDs when round changes
+  useEffect(() => {
+    if (game?.status !== 'active') {
+      setSubmittedPlayerIds(new Set());
+    }
+  }, [game?.status, game?.current_round]);
+
+  // Fetch submissions periodically during active game to show who has submitted
+  const fetchCurrentSubmissions = useCallback(async () => {
+    if (!game || game.status !== 'active') return;
+    const subs = await fetchSubmissions();
+    setSubmittedPlayerIds(new Set(subs.map((s: Submission) => s.player_id)));
+  }, [game, fetchSubmissions]);
+
+  useEffect(() => {
+    if (game?.status === 'active') {
+      fetchCurrentSubmissions();
+      // Poll for new submissions every 3 seconds
+      const interval = setInterval(fetchCurrentSubmissions, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [game?.status, fetchCurrentSubmissions]);
 
   // Show task selection before starting game
   const handleStartGame = async () => {
@@ -765,6 +789,36 @@ export default function FacilitatorPage() {
                   <p className="text-[#FAFAF5]/80">
                     {game.current_task.task.description}
                   </p>
+                </Card>
+              )}
+
+              {/* Submission Status */}
+              {game.game_players && game.game_players.length > 0 && (
+                <Card className="mb-6">
+                  <p className="text-sm text-[#FAFAF5]/60 mb-3">
+                    Submissions: {submittedPlayerIds.size} / {game.game_players.length}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {game.game_players.map((gp) => {
+                      const hasSubmitted = submittedPlayerIds.has(gp.player_id);
+                      return (
+                        <div
+                          key={gp.id}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                            hasSubmitted
+                              ? 'bg-[#22C55E]/20 border border-[#22C55E]/50'
+                              : 'bg-[#FAFAF5]/5 border border-[#FAFAF5]/20'
+                          }`}
+                        >
+                          <span>{gp.player?.avatar || '👤'}</span>
+                          <span className={hasSubmitted ? 'text-[#22C55E]' : 'text-[#FAFAF5]/60'}>
+                            {gp.player?.display_name}
+                          </span>
+                          {hasSubmitted && <span className="text-[#22C55E]">✓</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </Card>
               )}
 
