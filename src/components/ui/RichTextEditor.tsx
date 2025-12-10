@@ -94,7 +94,7 @@ export function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[120px] p-3',
+        class: 'prose prose-invert max-w-none focus:outline-none min-h-[200px] p-3',
       },
     },
   });
