@@ -871,7 +871,10 @@ export default function FacilitatorPage() {
                   </Card>
 
                   <div className="flex justify-center">
-                    <Button onClick={() => setView('winner')} size="lg">
+                    <Button onClick={async () => {
+                      await updateGame({ status: 'completed' });
+                      setView('winner');
+                    }} size="lg">
                       Show Winner
                     </Button>
                   </div>

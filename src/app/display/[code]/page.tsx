@@ -70,26 +70,23 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
     }
   }, [game?.status, fetchCurrentSubmissions]);
 
-  // Fetch leaderboard when needed
+  // Fetch leaderboard immediately when status changes and poll during leaderboard/completed
   useEffect(() => {
-    if (game?.status === 'completed' || game?.status === 'leaderboard') {
+    if (game?.status === 'completed' || game?.status === 'leaderboard' || game?.status === 'reflection') {
+      // Fetch immediately
       fetchLeaderboard().then((lb) => {
         if (lb) setLeaderboard(lb.leaderboard);
       });
+
+      // Poll every 2 seconds to catch updates
+      const interval = setInterval(() => {
+        fetchLeaderboard().then((lb) => {
+          if (lb) setLeaderboard(lb.leaderboard);
+        });
+      }, 2000);
+
+      return () => clearInterval(interval);
     }
-  }, [game?.status, fetchLeaderboard]);
-
-  // Poll leaderboard during leaderboard state to catch score updates
-  useEffect(() => {
-    if (game?.status !== 'leaderboard') return;
-
-    const interval = setInterval(() => {
-      fetchLeaderboard().then((lb) => {
-        if (lb) setLeaderboard(lb.leaderboard);
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
   }, [game?.status, fetchLeaderboard]);
 
   // Fetch submissions when judging
@@ -363,6 +360,69 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                     <span className={`text-5xl font-bold ${index === 0 ? 'text-[#FFE500]' : 'text-[#FAFAF5]'}`}>
                       {entry.score}
                     </span>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Reflection - Taskmaster observations */}
+        {game.status === 'reflection' && (
+          <motion.div
+            key="reflection"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-center relative z-10 w-full max-w-4xl"
+          >
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-[8rem] mb-8"
+            >
+              🎭
+            </motion.div>
+
+            <motion.h2
+              initial={{ y: -30 }}
+              animate={{ y: 0 }}
+              className="text-5xl font-bold text-[#FFE500] mb-6"
+              style={{ fontFamily: 'var(--font-space-grotesk)' }}
+            >
+              The Taskmaster Reflects...
+            </motion.h2>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-2xl text-[#FAFAF5]/60 mb-12"
+            >
+              Insights and observations incoming...
+            </motion.p>
+
+            {/* Show leaderboard during reflection */}
+            {leaderboard.length > 0 && (
+              <div className="space-y-3 max-w-2xl mx-auto">
+                {leaderboard.slice(0, 5).map((entry, index) => (
+                  <motion.div
+                    key={entry.display_name}
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`flex items-center gap-4 p-4 rounded-xl ${
+                      index === 0
+                        ? 'bg-[#FFE500]/20 border border-[#FFE500]/50'
+                        : 'bg-[#FAFAF5]/5'
+                    }`}
+                  >
+                    <span className="text-2xl font-bold w-10">
+                      {index === 0 ? '👑' : `#${entry.rank}`}
+                    </span>
+                    <span className="text-3xl">{entry.avatar || '👤'}</span>
+                    <span className="flex-1 text-xl font-medium">{entry.display_name}</span>
+                    <span className="text-2xl font-bold">{entry.score}</span>
                   </motion.div>
                 ))}
               </div>

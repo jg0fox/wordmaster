@@ -114,6 +114,12 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
         if (lb) setLeaderboard(lb.leaderboard);
       });
       setView('leaderboard');
+    } else if (game.status === 'reflection') {
+      // Show reflection view (leaderboard with reflection message)
+      fetchLeaderboard().then((lb) => {
+        if (lb) setLeaderboard(lb.leaderboard);
+      });
+      setView('leaderboard'); // Reuse leaderboard view during reflection
     } else if (game.status === 'completed') {
       // Show winner view
       fetchLeaderboard().then((lb) => {
@@ -123,9 +129,9 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard]);
 
-  // Poll leaderboard during leaderboard/winner state to catch score updates
+  // Poll leaderboard during leaderboard/reflection/completed states
   useEffect(() => {
-    if (game?.status !== 'leaderboard' && game?.status !== 'completed') return;
+    if (game?.status !== 'leaderboard' && game?.status !== 'reflection' && game?.status !== 'completed') return;
 
     // Fetch immediately
     fetchLeaderboard().then((lb) => {
@@ -506,7 +512,9 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                 )}
 
                 <p className="text-center text-[#FAFAF5]/50 text-sm mt-4">
-                  Waiting for next round...
+                  {game?.status === 'reflection'
+                    ? 'The Taskmaster is reflecting on your performance...'
+                    : 'Waiting for next round...'}
                 </p>
               </Card>
             </motion.div>
