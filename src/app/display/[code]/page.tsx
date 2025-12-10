@@ -3,6 +3,7 @@
 import { use, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
+import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
 import type { Submission, ReflectionResponse } from '@/types/database';
 
 export default function DisplayPage({ params }: { params: Promise<{ code: string }> }) {
@@ -316,8 +317,8 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                         <h3 className="text-2xl font-bold">{submission.player?.display_name}</h3>
                       </div>
                     </div>
-                    <div className="bg-[#0A0A0F] rounded-xl p-4 font-mono text-lg">
-                      {submission.content}
+                    <div className="bg-[#0A0A0F] rounded-xl p-4 text-lg">
+                      <RichTextDisplay content={submission.content} />
                     </div>
                   </motion.div>
                 ))}

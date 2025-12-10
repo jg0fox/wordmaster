@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useGameState, useFacilitatorSession } from '@/hooks/useGameState';
+import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
 import type { Submission, ReflectionResponse } from '@/types/database';
 
 type View = 'setup' | 'lobby' | 'playing' | 'judging' | 'leaderboard' | 'reflection' | 'winner';
@@ -698,8 +699,8 @@ export default function FacilitatorPage() {
                               )}
                             </div>
                           </div>
-                          <div className="mt-4 bg-[#0A0A0F] rounded-lg p-4 font-mono text-sm">
-                            {submission.content}
+                          <div className="mt-4 bg-[#0A0A0F] rounded-lg p-4 text-sm">
+                            <RichTextDisplay content={submission.content} />
                           </div>
 
                           {/* AI Commentary (if available) */}

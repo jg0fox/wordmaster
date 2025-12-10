@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
 import { useGameState, usePlayer, useSubmission } from '@/hooks/useGameState';
 import type { Submission, ReflectionResponse } from '@/types/database';
 
@@ -409,16 +411,16 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
               </Card>
 
               <div className="space-y-4">
-                <textarea
+                <RichTextEditor
                   value={responseText}
-                  onChange={(e) => setResponseText(e.target.value)}
+                  onChange={setResponseText}
                   placeholder="Write your response..."
-                  className="w-full px-4 py-3 rounded-lg bg-[#FAFAF5]/10 border border-[#FAFAF5]/20 text-[#FAFAF5] placeholder-[#FAFAF5]/40 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-[#FFE500]/50 font-mono"
+                  disabled={submitting}
                 />
 
                 <Button
                   onClick={handleSubmit}
-                  disabled={submitting || !responseText.trim()}
+                  disabled={submitting || !responseText.trim() || responseText === '<p></p>'}
                   className="w-full"
                   size="lg"
                 >
@@ -477,8 +479,8 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
 
                 {mySubmission && (
                   <div className="mt-6 p-4 bg-[#0A0A0F] rounded-lg text-left">
-                    <p className="text-xs text-[#FAFAF5]/50 mb-1">Your submission:</p>
-                    <p className="font-mono text-sm">{mySubmission.content}</p>
+                    <p className="text-xs text-[#FAFAF5]/50 mb-2">Your submission:</p>
+                    <RichTextDisplay content={mySubmission.content} className="text-sm" />
                   </div>
                 )}
               </Card>
