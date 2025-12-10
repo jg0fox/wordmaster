@@ -3,16 +3,17 @@
 import { use, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
-import type { Submission } from '@/types/database';
+import type { Submission, ReflectionResponse } from '@/types/database';
 
 export default function DisplayPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
-  const { game, fetchLeaderboard, fetchSubmissions } = useGameState({ code, autoRefresh: true });
+  const { game, fetchLeaderboard, fetchSubmissions, fetchReflection } = useGameState({ code, autoRefresh: true });
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerExpired, setTimerExpired] = useState(false);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [submittedPlayerIds, setSubmittedPlayerIds] = useState<Set<string>>(new Set());
+  const [reflection, setReflection] = useState<ReflectionResponse | null>(null);
 
   // Timer sync from server timestamp
   useEffect(() => {
@@ -97,6 +98,25 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
       });
     }
   }, [game?.status, fetchSubmissions]);
+
+  // Fetch reflection when status changes to reflection
+  useEffect(() => {
+    if (game?.status === 'reflection') {
+      // Fetch immediately
+      fetchReflection().then((ref) => {
+        if (ref) setReflection(ref);
+      });
+
+      // Poll every 2 seconds in case it's still being generated
+      const interval = setInterval(() => {
+        fetchReflection().then((ref) => {
+          if (ref) setReflection(ref);
+        });
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }
+  }, [game?.status, fetchReflection]);
 
   // Format time
   const formatTime = (seconds: number) => {
@@ -374,12 +394,12 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center relative z-10 w-full max-w-4xl"
+            className="text-center relative z-10 w-full max-w-5xl"
           >
             <motion.div
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="text-[8rem] mb-8"
+              className="text-[6rem] mb-6"
             >
               🎭
             </motion.div>
@@ -387,44 +407,75 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
             <motion.h2
               initial={{ y: -30 }}
               animate={{ y: 0 }}
-              className="text-5xl font-bold text-[#FFE500] mb-6"
+              className="text-5xl font-bold text-[#FFE500] mb-8"
               style={{ fontFamily: 'var(--font-space-grotesk)' }}
             >
               The Taskmaster Reflects...
             </motion.h2>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-2xl text-[#FAFAF5]/60 mb-12"
-            >
-              Insights and observations incoming...
-            </motion.p>
+            {!reflection ? (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-2xl text-[#FAFAF5]/60"
+              >
+                Generating insights...
+              </motion.p>
+            ) : (
+              <div className="space-y-8 text-left">
+                {/* Opening Observation */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl bg-[#FAFAF5]/5 p-8 border border-[#FFE500]/30"
+                >
+                  <p className="text-2xl leading-relaxed text-[#FAFAF5]/90">{reflection.opening_observation}</p>
+                </motion.div>
 
-            {/* Show leaderboard during reflection */}
-            {leaderboard.length > 0 && (
-              <div className="space-y-3 max-w-2xl mx-auto">
-                {leaderboard.slice(0, 5).map((entry, index) => (
-                  <motion.div
-                    key={entry.display_name}
-                    initial={{ opacity: 0, x: -30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className={`flex items-center gap-4 p-4 rounded-xl ${
-                      index === 0
-                        ? 'bg-[#FFE500]/20 border border-[#FFE500]/50'
-                        : 'bg-[#FAFAF5]/5'
-                    }`}
-                  >
-                    <span className="text-2xl font-bold w-10">
-                      {index === 0 ? '👑' : `#${entry.rank}`}
-                    </span>
-                    <span className="text-3xl">{entry.avatar || '👤'}</span>
-                    <span className="flex-1 text-xl font-medium">{entry.display_name}</span>
-                    <span className="text-2xl font-bold">{entry.score}</span>
-                  </motion.div>
-                ))}
+                {/* Three Insights */}
+                <div className="grid gap-6">
+                  {reflection.three_insights.map((insight, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + index * 0.15 }}
+                      className="rounded-2xl bg-[#FAFAF5]/5 p-6 border border-[#FAFAF5]/10"
+                    >
+                      <h3 className="text-2xl font-bold text-[#FFE500] mb-3" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                        {insight.title}
+                      </h3>
+                      <p className="text-xl text-[#FAFAF5]/80 mb-4">{insight.observation}</p>
+                      <p className="text-lg text-[#FAFAF5]/60 italic">&ldquo;{insight.question_for_team}&rdquo;</p>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* The AI Question */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="rounded-2xl bg-[#2D1B69]/30 p-8 border border-[#FF2E6C]/30"
+                >
+                  <h3 className="text-2xl font-bold text-[#FF2E6C] mb-4" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                    The Question
+                  </h3>
+                  <p className="text-xl text-[#FAFAF5]/80 mb-3">{reflection.the_ai_question.observation}</p>
+                  <p className="text-lg text-[#FAFAF5]/60 mb-3"><strong>Tension:</strong> {reflection.the_ai_question.tension}</p>
+                  <p className="text-xl text-[#FFE500]"><strong>Reframe:</strong> {reflection.the_ai_question.reframe}</p>
+                </motion.div>
+
+                {/* Closing Provocation */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.9 }}
+                  className="rounded-2xl bg-[#FFE500]/10 p-8 border border-[#FFE500]/50 text-center"
+                >
+                  <p className="text-2xl font-semibold text-[#FAFAF5]">{reflection.closing_provocation}</p>
+                </motion.div>
               </div>
             )}
           </motion.div>

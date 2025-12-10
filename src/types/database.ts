@@ -20,6 +20,7 @@ export interface Game {
   timer_seconds: number;
   timer_started_at: string | null;  // ISO timestamp when timer was started
   timer_paused_remaining: number | null;  // Seconds remaining when paused
+  reflection: ReflectionResponse | null;  // End-of-game AI reflection
   created_at: string;
 }
 

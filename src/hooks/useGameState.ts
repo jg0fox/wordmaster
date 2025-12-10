@@ -199,6 +199,18 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
     }
   }, [code]);
 
+  const fetchReflection = useCallback(async () => {
+    if (!code) return null;
+
+    try {
+      const response = await fetch(`/api/games/${code}/reflection`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }, [code]);
+
   const fetchSubmissions = useCallback(async (round?: number) => {
     if (!code) return [];
 
@@ -231,6 +243,7 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
     triggerJudgment,
     triggerReflection,
     fetchLeaderboard,
+    fetchReflection,
     fetchSubmissions,
   };
 }

@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 import { generateReflection } from '@/lib/reflection';
 
+// GET /api/games/[code]/reflection - Get stored reflection
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    const { code } = await params;
+    const supabase = createServiceClient();
+
+    // Get game with reflection
+    const { data: game, error: gameError } = await supabase
+      .from('games')
+      .select('reflection')
+      .eq('code', code.toUpperCase())
+      .single();
+
+    if (gameError || !game) {
+      return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+    }
+
+    if (!game.reflection) {
+      return NextResponse.json({ error: 'No reflection available' }, { status: 404 });
+    }
+
+    return NextResponse.json(game.reflection);
+  } catch (error) {
+    console.error('Error in GET /api/games/[code]/reflection:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 // POST /api/games/[code]/reflection - Trigger Opus reflection analysis
 export async function POST(
   request: NextRequest,
@@ -72,6 +103,12 @@ export async function POST(
       rounds_played: game.current_round,
       submissions,
     });
+
+    // Store reflection in database
+    await supabase
+      .from('games')
+      .update({ reflection })
+      .eq('id', game.id);
 
     return NextResponse.json(reflection);
   } catch (error) {

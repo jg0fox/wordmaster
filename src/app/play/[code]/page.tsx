@@ -6,15 +6,15 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useGameState, usePlayer, useSubmission } from '@/hooks/useGameState';
-import type { Submission } from '@/types/database';
+import type { Submission, ReflectionResponse } from '@/types/database';
 
-type PlayerView = 'auth' | 'waiting' | 'playing' | 'submitted' | 'results' | 'leaderboard' | 'winner';
+type PlayerView = 'auth' | 'waiting' | 'playing' | 'submitted' | 'results' | 'leaderboard' | 'reflection' | 'winner';
 
 const AVATARS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🐸', '🦉', '🐼', '🦋', '🌟', '🔥', '💡', '🎯', '✨'];
 
 export default function PlayerGamePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
-  const { game, fetchSubmissions, fetchLeaderboard } = useGameState({ code, autoRefresh: true });
+  const { game, fetchSubmissions, fetchLeaderboard, fetchReflection } = useGameState({ code, autoRefresh: true });
   const { player, loading: playerLoading, register, logout } = usePlayer();
   const { submit, submitting, submitted, submission, reset } = useSubmission(code, player?.id || '');
 
@@ -28,6 +28,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerExpired, setTimerExpired] = useState(false);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
+  const [reflection, setReflection] = useState<ReflectionResponse | null>(null);
 
   // Timer sync from server timestamp
   useEffect(() => {
@@ -115,11 +116,8 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
       });
       setView('leaderboard');
     } else if (game.status === 'reflection') {
-      // Show reflection view (leaderboard with reflection message)
-      fetchLeaderboard().then((lb) => {
-        if (lb) setLeaderboard(lb.leaderboard);
-      });
-      setView('leaderboard'); // Reuse leaderboard view during reflection
+      // Show reflection view with AI analysis
+      setView('reflection');
     } else if (game.status === 'completed') {
       // Show winner view
       fetchLeaderboard().then((lb) => {
@@ -129,9 +127,9 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard]);
 
-  // Poll leaderboard during leaderboard/reflection/completed states
+  // Poll leaderboard during leaderboard/completed states
   useEffect(() => {
-    if (game?.status !== 'leaderboard' && game?.status !== 'reflection' && game?.status !== 'completed') return;
+    if (game?.status !== 'leaderboard' && game?.status !== 'completed') return;
 
     // Fetch immediately
     fetchLeaderboard().then((lb) => {
@@ -147,6 +145,25 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
 
     return () => clearInterval(interval);
   }, [game?.status, fetchLeaderboard]);
+
+  // Fetch reflection when status changes to reflection
+  useEffect(() => {
+    if (game?.status !== 'reflection') return;
+
+    // Fetch immediately
+    fetchReflection().then((ref) => {
+      if (ref) setReflection(ref);
+    });
+
+    // Poll every 2 seconds in case it's still being generated
+    const interval = setInterval(() => {
+      fetchReflection().then((ref) => {
+        if (ref) setReflection(ref);
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [game?.status, fetchReflection]);
 
   // Join game - accepts optional playerId for immediate use after registration
   const joinGame = async (playerId?: string) => {
@@ -528,10 +545,78 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                 )}
 
                 <p className="text-center text-[#FAFAF5]/50 text-sm mt-4">
-                  {game?.status === 'reflection'
-                    ? 'The Taskmaster is reflecting on your performance...'
-                    : 'Waiting for next round...'}
+                  Waiting for next round...
                 </p>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Reflection View */}
+          {view === 'reflection' && (
+            <motion.div
+              key="reflection"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card>
+                <div className="text-center mb-4">
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-5xl mb-3"
+                  >
+                    🎭
+                  </motion.div>
+                  <h2 className="text-xl font-bold text-[#FFE500]" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                    The Taskmaster Reflects...
+                  </h2>
+                </div>
+
+                {!reflection ? (
+                  <motion.p
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-center text-[#FAFAF5]/60"
+                  >
+                    Generating insights...
+                  </motion.p>
+                ) : (
+                  <div className="space-y-4 text-left">
+                    {/* Opening Observation */}
+                    <div className="rounded-lg bg-[#0A0A0F] p-4">
+                      <p className="text-sm leading-relaxed text-[#FAFAF5]/90">{reflection.opening_observation}</p>
+                    </div>
+
+                    {/* Three Insights */}
+                    {reflection.three_insights.map((insight, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="rounded-lg bg-[#FAFAF5]/5 p-4"
+                      >
+                        <h3 className="text-sm font-bold text-[#FFE500] mb-2">{insight.title}</h3>
+                        <p className="text-sm text-[#FAFAF5]/80 mb-2">{insight.observation}</p>
+                        <p className="text-xs text-[#FAFAF5]/60 italic">&ldquo;{insight.question_for_team}&rdquo;</p>
+                      </motion.div>
+                    ))}
+
+                    {/* The AI Question */}
+                    <div className="rounded-lg bg-[#2D1B69]/30 p-4 border border-[#FF2E6C]/30">
+                      <h3 className="text-sm font-bold text-[#FF2E6C] mb-2">The Question</h3>
+                      <p className="text-sm text-[#FAFAF5]/80 mb-2">{reflection.the_ai_question.observation}</p>
+                      <p className="text-xs text-[#FAFAF5]/60 mb-2"><strong>Tension:</strong> {reflection.the_ai_question.tension}</p>
+                      <p className="text-sm text-[#FFE500]"><strong>Reframe:</strong> {reflection.the_ai_question.reframe}</p>
+                    </div>
+
+                    {/* Closing Provocation */}
+                    <div className="rounded-lg bg-[#FFE500]/10 p-4 text-center">
+                      <p className="text-sm font-semibold text-[#FAFAF5]">{reflection.closing_provocation}</p>
+                    </div>
+                  </div>
+                )}
               </Card>
             </motion.div>
           )}
