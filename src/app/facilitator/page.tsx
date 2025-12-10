@@ -21,7 +21,7 @@ export default function FacilitatorPage() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [selectedWinner, setSelectedWinner] = useState<string | null>(null);
+  const [playerScores, setPlayerScores] = useState<Record<string, number>>({});
   const [awardingPoints, setAwardingPoints] = useState(false);
   const [reflection, setReflection] = useState<ReflectionResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
@@ -251,22 +251,35 @@ export default function FacilitatorPage() {
     // Fetch submissions for judging
     const subs = await fetchSubmissions();
     setSubmissions(subs);
-    setSelectedWinner(null);
+    setPlayerScores({});
     setAiSuggestions({}); // Reset AI suggestions for new round
     setView('judging');
   };
 
-  // Award points to winner
-  const handleAwardPoints = async (points: number) => {
-    if (!selectedWinner || !gameCode) return;
+  // Set score for a specific player's submission
+  const handleSetScore = (playerId: string, score: number) => {
+    setPlayerScores(prev => ({
+      ...prev,
+      [playerId]: score
+    }));
+  };
+
+  // Finish judging - award all scores and move to leaderboard
+  const handleFinishJudging = async () => {
+    if (!gameCode) return;
 
     setAwardingPoints(true);
     try {
-      await fetch(`/api/games/${gameCode}/award`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: selectedWinner, points }),
-      });
+      // Award points to all scored players
+      const awardPromises = Object.entries(playerScores).map(([playerId, points]) =>
+        fetch(`/api/games/${gameCode}/award`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player_id: playerId, points }),
+        })
+      );
+
+      await Promise.all(awardPromises);
 
       // Show leaderboard
       await handleShowLeaderboard();
@@ -277,7 +290,7 @@ export default function FacilitatorPage() {
     }
   };
 
-  // Skip judging (no winner)
+  // Skip judging (no scores)
   const handleSkipJudging = async () => {
     await handleShowLeaderboard();
   };
@@ -640,7 +653,7 @@ export default function FacilitatorPage() {
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                  Choose a Winner
+                  Score Submissions
                 </h2>
                 {submissions.length > 0 && (
                   <Button
@@ -663,6 +676,13 @@ export default function FacilitatorPage() {
                 </div>
               ) : (
                 <>
+                  {/* Progress indicator */}
+                  <div className="mb-6 text-center">
+                    <p className="text-[#FAFAF5]/60">
+                      Scored: {Object.keys(playerScores).length} / {submissions.length}
+                    </p>
+                  </div>
+
                   <div className="space-y-4 mb-8">
                     {submissions.map((submission) => {
                       const aiSuggestion = aiSuggestions[submission.player_id] || (submission.ai_score ? {
@@ -670,16 +690,17 @@ export default function FacilitatorPage() {
                         greg_quote: submission.greg_quote || '',
                         alex_quote: submission.alex_quote || '',
                       } : null);
+                      const currentScore = playerScores[submission.player_id];
+                      const isScored = currentScore !== undefined;
 
                       return (
                         <Card
                           key={submission.id}
-                          className={`cursor-pointer transition-all ${
-                            selectedWinner === submission.player_id
-                              ? 'ring-2 ring-[#FFE500] bg-[#FFE500]/10'
-                              : 'hover:bg-[#FAFAF5]/5'
+                          className={`transition-all ${
+                            isScored
+                              ? 'ring-2 ring-[#22C55E] bg-[#22C55E]/10'
+                              : ''
                           }`}
-                          onClick={() => setSelectedWinner(submission.player_id)}
                         >
                           <div className="flex items-start gap-4">
                             <div className="flex items-center gap-3">
@@ -694,8 +715,10 @@ export default function FacilitatorPage() {
                                   🤖 {aiSuggestion.score}/5
                                 </span>
                               )}
-                              {selectedWinner === submission.player_id && (
-                                <span className="text-[#FFE500] text-2xl">✓</span>
+                              {isScored && (
+                                <span className="text-[#22C55E] font-bold text-lg">
+                                  {currentScore} pts ✓
+                                </span>
                               )}
                             </div>
                           </div>
@@ -718,39 +741,54 @@ export default function FacilitatorPage() {
                               )}
                             </div>
                           )}
+
+                          {/* Inline score buttons */}
+                          <div className="mt-4 pt-4 border-t border-[#FAFAF5]/10">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-[#FAFAF5]/60 mr-2">Score:</span>
+                              {[1, 2, 3, 4, 5].map((score) => (
+                                <button
+                                  key={score}
+                                  onClick={() => handleSetScore(submission.player_id, score)}
+                                  className={`w-10 h-10 rounded-lg font-bold transition-all ${
+                                    currentScore === score
+                                      ? 'bg-[#FFE500] text-[#0A0A0F]'
+                                      : 'bg-[#FAFAF5]/10 text-[#FAFAF5]/70 hover:bg-[#FAFAF5]/20'
+                                  }`}
+                                >
+                                  {score}
+                                </button>
+                              ))}
+                              {isScored && (
+                                <button
+                                  onClick={() => {
+                                    const newScores = { ...playerScores };
+                                    delete newScores[submission.player_id];
+                                    setPlayerScores(newScores);
+                                  }}
+                                  className="ml-2 text-sm text-[#FAFAF5]/40 hover:text-[#FF2E6C]"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </Card>
                       );
                     })}
                   </div>
 
-                  {/* Award Points Section */}
-                  <Card className="mb-6">
-                    <h3 className="text-lg font-bold mb-4">Award Points</h3>
-                    {selectedWinner ? (
-                      <div className="flex flex-wrap gap-3 justify-center">
-                        {[1, 2, 3, 4, 5].map((points) => (
-                          <Button
-                            key={points}
-                            onClick={() => handleAwardPoints(points)}
-                            disabled={awardingPoints}
-                            variant={points === 5 ? 'primary' : 'ghost'}
-                            size="lg"
-                            className="min-w-[80px]"
-                          >
-                            {points} pt{points !== 1 ? 's' : ''}
-                          </Button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-center text-[#FAFAF5]/50">
-                        Select a submission above to award points
-                      </p>
-                    )}
-                  </Card>
-
+                  {/* Finish Judging Section */}
                   <div className="flex justify-center gap-4">
                     <Button onClick={handleSkipJudging} variant="ghost" size="lg">
-                      Skip (No Winner)
+                      Skip Round
+                    </Button>
+                    <Button
+                      onClick={handleFinishJudging}
+                      disabled={awardingPoints || Object.keys(playerScores).length === 0}
+                      size="lg"
+                    >
+                      {awardingPoints ? 'Awarding...' : `Award Points (${Object.keys(playerScores).length} scored)`}
                     </Button>
                   </div>
                 </>
