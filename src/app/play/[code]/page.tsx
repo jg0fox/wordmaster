@@ -66,6 +66,29 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     return () => clearInterval(interval);
   }, [game?.status, game?.timer_started_at, game?.timer_seconds, game?.timer_paused_remaining, game?.current_round, timerExpired]);
 
+  // Auto-submit when timer expires if player has content but hasn't submitted
+  useEffect(() => {
+    const autoSubmit = async () => {
+      // Only auto-submit if:
+      // 1. Timer just expired
+      // 2. Player is in playing view (hasn't submitted yet)
+      // 3. Has actual content (not empty or just <p></p>)
+      // 4. Not already submitting
+      const hasContent = responseText.trim() && responseText !== '<p></p>' && responseText !== '<p><br></p>';
+
+      if (timerExpired && view === 'playing' && hasContent && !submitting && !submitted) {
+        console.log('Auto-submitting response on timer expiry');
+        const result = await submit(responseText);
+        if (result) {
+          setMySubmission(result);
+          setView('submitted');
+        }
+      }
+    };
+
+    autoSubmit();
+  }, [timerExpired, view, responseText, submitting, submitted, submit]);
+
   // Format time helper
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
