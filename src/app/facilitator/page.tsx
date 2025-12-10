@@ -1110,24 +1110,28 @@ export default function FacilitatorPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
+                  {/* Taskmaster Image */}
+                  <div className="text-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg"
+                      alt="Greg Davies and Alex Horne from Taskmaster"
+                      className="w-40 h-auto mx-auto rounded-xl border-2 border-[#FFE500]/50"
+                    />
+                    <p className="text-[10px] text-[#FAFAF5]/30 mt-1">
+                      Image: <a href="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg" target="_blank" rel="noopener noreferrer" className="hover:text-[#FAFAF5]/50">WBUR</a>
+                    </p>
+                  </div>
+
                   <Card variant="glow">
-                    <h3 className="text-xl font-bold text-[#FFE500] mb-3">Opening Observation</h3>
+                    <h3 className="text-xl font-bold text-[#FFE500] mb-3">The Taskmaster Speaks</h3>
                     <p className="text-lg">{reflection.opening_observation}</p>
                   </Card>
 
-                  {reflection.three_insights.map((insight, index) => (
-                    <Card key={index}>
-                      <h3 className="text-lg font-bold text-[#FF2E6C] mb-2">{insight.title}</h3>
-                      <p className="text-[#FAFAF5]/80 mb-3">{insight.observation}</p>
-                      <p className="text-[#FAFAF5]/60 italic">💬 {insight.question_for_team}</p>
-                    </Card>
-                  ))}
-
-                  <Card className="border-[#2D1B69] border-2">
-                    <h3 className="text-xl font-bold text-[#2D1B69] mb-3">The AI Question</h3>
-                    <p className="text-[#FAFAF5]/80 mb-2">{reflection.the_ai_question.observation}</p>
-                    <p className="text-[#FAFAF5]/60 mb-2"><strong>Tension:</strong> {reflection.the_ai_question.tension}</p>
-                    <p className="text-[#FFE500]"><strong>Reframe:</strong> {reflection.the_ai_question.reframe}</p>
+                  <Card>
+                    <h3 className="text-lg font-bold text-[#FF2E6C] mb-2">{reflection.key_insight.title}</h3>
+                    <p className="text-[#FAFAF5]/80 mb-3">{reflection.key_insight.observation}</p>
+                    <p className="text-[#FAFAF5]/60 italic">💬 {reflection.key_insight.question}</p>
                   </Card>
 
                   <Card variant="glow" className="text-center">

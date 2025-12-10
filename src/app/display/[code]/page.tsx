@@ -424,14 +424,23 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center relative z-10 w-full max-w-5xl"
+            className="text-center relative z-10 w-full max-w-4xl"
           >
+            {/* Taskmaster Image */}
             <motion.div
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-[6rem] mb-6"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="mb-6"
             >
-              🎭
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg"
+                alt="Greg Davies and Alex Horne from Taskmaster"
+                className="w-64 h-auto mx-auto rounded-2xl border-4 border-[#FFE500]/50 shadow-2xl"
+              />
+              <p className="text-xs text-[#FAFAF5]/30 mt-2">
+                Image: <a href="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg" target="_blank" rel="noopener noreferrer" className="hover:text-[#FAFAF5]/50">WBUR</a>
+              </p>
             </motion.div>
 
             <motion.h2
@@ -453,7 +462,7 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                 Generating insights...
               </motion.p>
             ) : (
-              <div className="space-y-8 text-left">
+              <div className="space-y-6 text-left">
                 {/* Opening Observation */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -463,45 +472,25 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                   <p className="text-2xl leading-relaxed text-[#FAFAF5]/90">{reflection.opening_observation}</p>
                 </motion.div>
 
-                {/* Three Insights */}
-                <div className="grid gap-6">
-                  {reflection.three_insights.map((insight, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 + index * 0.15 }}
-                      className="rounded-2xl bg-[#FAFAF5]/5 p-6 border border-[#FAFAF5]/10"
-                    >
-                      <h3 className="text-2xl font-bold text-[#FFE500] mb-3" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                        {insight.title}
-                      </h3>
-                      <p className="text-xl text-[#FAFAF5]/80 mb-4">{insight.observation}</p>
-                      <p className="text-lg text-[#FAFAF5]/60 italic">&ldquo;{insight.question_for_team}&rdquo;</p>
-                    </motion.div>
-                  ))}
-                </div>
-
-                {/* The AI Question */}
+                {/* Key Insight */}
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 }}
-                  className="rounded-2xl bg-[#2D1B69]/30 p-8 border border-[#FF2E6C]/30"
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="rounded-2xl bg-[#FAFAF5]/5 p-6 border border-[#FAFAF5]/10"
                 >
-                  <h3 className="text-2xl font-bold text-[#FF2E6C] mb-4" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                    The Question
+                  <h3 className="text-2xl font-bold text-[#FFE500] mb-3" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                    {reflection.key_insight.title}
                   </h3>
-                  <p className="text-xl text-[#FAFAF5]/80 mb-3">{reflection.the_ai_question.observation}</p>
-                  <p className="text-lg text-[#FAFAF5]/60 mb-3"><strong>Tension:</strong> {reflection.the_ai_question.tension}</p>
-                  <p className="text-xl text-[#FFE500]"><strong>Reframe:</strong> {reflection.the_ai_question.reframe}</p>
+                  <p className="text-xl text-[#FAFAF5]/80 mb-4">{reflection.key_insight.observation}</p>
+                  <p className="text-lg text-[#FAFAF5]/60 italic">&ldquo;{reflection.key_insight.question}&rdquo;</p>
                 </motion.div>
 
                 {/* Closing Provocation */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.9 }}
+                  transition={{ delay: 0.4 }}
                   className="rounded-2xl bg-[#FFE500]/10 p-8 border border-[#FFE500]/50 text-center"
                 >
                   <p className="text-2xl font-semibold text-[#FAFAF5]">{reflection.closing_provocation}</p>

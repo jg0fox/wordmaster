@@ -89,30 +89,15 @@ export interface JudgmentResponse {
   score_reason: string;
 }
 
-// Reflection response types
-export interface ReflectionInsight {
-  title: string;
-  observation: string;
-  question_for_team: string;
-}
-
-export interface ReflectionSubmission {
-  task_title: string;
-  submission_excerpt: string;
-  player: string;
-  why_notable: string;
-}
-
+// Reflection response types (simplified)
 export interface ReflectionResponse {
   opening_observation: string;
-  three_insights: ReflectionInsight[];
-  the_ai_question: {
+  key_insight: {
+    title: string;
     observation: string;
-    tension: string;
-    reframe: string;
+    question: string;
   };
   closing_provocation: string;
-  top_submissions_to_discuss: ReflectionSubmission[];
 }
 
 // Real-time event types

@@ -611,16 +611,19 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
             >
               <Card>
                 <div className="text-center mb-4">
-                  <motion.div
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="text-5xl mb-3"
-                  >
-                    🎭
-                  </motion.div>
+                  {/* Taskmaster Image */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg"
+                    alt="Greg Davies and Alex Horne from Taskmaster"
+                    className="w-32 h-auto mx-auto rounded-xl border-2 border-[#FFE500]/50 mb-3"
+                  />
                   <h2 className="text-xl font-bold text-[#FFE500]" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
                     The Taskmaster Reflects...
                   </h2>
+                  <p className="text-[10px] text-[#FAFAF5]/30 mt-1">
+                    Image: <a href="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg" target="_blank" rel="noopener noreferrer" className="hover:text-[#FAFAF5]/50">WBUR</a>
+                  </p>
                 </div>
 
                 {!reflection ? (
@@ -638,28 +641,17 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                       <p className="text-sm leading-relaxed text-[#FAFAF5]/90">{reflection.opening_observation}</p>
                     </div>
 
-                    {/* Three Insights */}
-                    {reflection.three_insights.map((insight, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="rounded-lg bg-[#FAFAF5]/5 p-4"
-                      >
-                        <h3 className="text-sm font-bold text-[#FFE500] mb-2">{insight.title}</h3>
-                        <p className="text-sm text-[#FAFAF5]/80 mb-2">{insight.observation}</p>
-                        <p className="text-xs text-[#FAFAF5]/60 italic">&ldquo;{insight.question_for_team}&rdquo;</p>
-                      </motion.div>
-                    ))}
-
-                    {/* The AI Question */}
-                    <div className="rounded-lg bg-[#2D1B69]/30 p-4 border border-[#FF2E6C]/30">
-                      <h3 className="text-sm font-bold text-[#FF2E6C] mb-2">The Question</h3>
-                      <p className="text-sm text-[#FAFAF5]/80 mb-2">{reflection.the_ai_question.observation}</p>
-                      <p className="text-xs text-[#FAFAF5]/60 mb-2"><strong>Tension:</strong> {reflection.the_ai_question.tension}</p>
-                      <p className="text-sm text-[#FFE500]"><strong>Reframe:</strong> {reflection.the_ai_question.reframe}</p>
-                    </div>
+                    {/* Key Insight */}
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="rounded-lg bg-[#FAFAF5]/5 p-4"
+                    >
+                      <h3 className="text-sm font-bold text-[#FFE500] mb-2">{reflection.key_insight.title}</h3>
+                      <p className="text-sm text-[#FAFAF5]/80 mb-2">{reflection.key_insight.observation}</p>
+                      <p className="text-xs text-[#FAFAF5]/60 italic">&ldquo;{reflection.key_insight.question}&rdquo;</p>
+                    </motion.div>
 
                     {/* Closing Provocation */}
                     <div className="rounded-lg bg-[#FFE500]/10 p-4 text-center">
