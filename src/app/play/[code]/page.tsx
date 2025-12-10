@@ -165,6 +165,21 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   };
 
+  // Leave game - removes player from the game
+  const leaveGame = async () => {
+    if (!player?.id) return;
+
+    try {
+      await fetch(`/api/games/${code}/join`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: player.id }),
+      });
+    } catch (error) {
+      console.error('Error leaving game:', error);
+    }
+  };
+
   // Register new player
   const handleRegister = async () => {
     if (!displayName.trim()) return;
@@ -232,7 +247,8 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
             <p className="text-sm text-[#FAFAF5]/60 mt-1">
               Playing as {player.display_name}{' '}
               <button
-                onClick={() => {
+                onClick={async () => {
+                  await leaveGame();
                   logout();
                   setJoinedGame(false);
                   setView('auth');
