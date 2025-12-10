@@ -103,21 +103,19 @@ export function useGameState({ code, autoRefresh = true }: UseGameStateOptions) 
     },
   });
 
-  // Fallback polling in case real-time fails (every 3 seconds for active games)
+  // Fallback polling in case real-time fails
+  // Always poll every 2 seconds when autoRefresh is enabled to catch status transitions
   useEffect(() => {
-    if (!autoRefresh || !game) return;
+    if (!autoRefresh || !code) return;
 
-    // Poll more frequently for active/judging/leaderboard games, less for lobby/completed
-    const pollInterval = (game.status === 'active' || game.status === 'judging' || game.status === 'leaderboard')
-      ? 3000
-      : 10000;
-
+    // Use a consistent 2-second poll for all game states
+    // This ensures status transitions are caught quickly regardless of current state
     const interval = setInterval(() => {
       fetchGame();
-    }, pollInterval);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, game?.status, fetchGame]);
+  }, [autoRefresh, code, fetchGame]);
 
   // Game actions
   const updateGame = useCallback(async (updates: Partial<GameWithPlayers>) => {
