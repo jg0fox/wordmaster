@@ -44,25 +44,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create game' }, { status: 500 });
     }
 
-    // Select random tasks for this game
-    const { data: allTasks } = await supabase
-      .from('tasks')
-      .select('id');
-
-    if (allTasks && allTasks.length >= total_rounds) {
-      // Shuffle and pick tasks
-      const shuffled = allTasks.sort(() => Math.random() - 0.5);
-      const selectedTasks = shuffled.slice(0, total_rounds);
-
-      // Create game_tasks entries
-      const gameTasks = selectedTasks.map((task, index) => ({
-        game_id: game.id,
-        task_id: task.id,
-        round_number: index + 1,
-      }));
-
-      await supabase.from('game_tasks').insert(gameTasks);
-    }
+    // Tasks are now selected by the facilitator before each round
+    // No pre-assignment needed
 
     return NextResponse.json(game);
   } catch (error) {

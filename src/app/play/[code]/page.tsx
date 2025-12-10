@@ -477,8 +477,33 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                   The facilitator is reviewing submissions...
                 </p>
 
+                {/* Task and Judging Criteria */}
+                {game.current_task?.task && (
+                  <div className="mt-4 p-4 bg-[#FAFAF5]/5 rounded-lg text-left border border-[#FFE500]/20">
+                    <h3 className="text-sm font-bold text-[#FFE500] mb-1">
+                      {game.current_task.task.title}
+                    </h3>
+                    <p className="text-xs text-[#FAFAF5]/70 mb-3">
+                      {game.current_task.task.description}
+                    </p>
+                    {game.current_task.task.judging_criteria && (
+                      <div className="pt-3 border-t border-[#FAFAF5]/10">
+                        <p className="text-xs text-[#FF2E6C] uppercase tracking-wide font-semibold mb-2">Judging Criteria</p>
+                        <ul className="space-y-1">
+                          {game.current_task.task.judging_criteria.split('\n').filter((c: string) => c.trim()).map((criterion: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-[#FAFAF5]/60">
+                              <span className="text-[#FFE500]">•</span>
+                              <span>{criterion}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {mySubmission && (
-                  <div className="mt-6 p-4 bg-[#0A0A0F] rounded-lg text-left">
+                  <div className="mt-4 p-4 bg-[#0A0A0F] rounded-lg text-left">
                     <p className="text-xs text-[#FAFAF5]/50 mb-2">Your submission:</p>
                     <RichTextDisplay content={mySubmission.content} className="text-sm" />
                   </div>

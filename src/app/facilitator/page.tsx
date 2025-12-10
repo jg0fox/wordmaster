@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useGameState, useFacilitatorSession } from '@/hooks/useGameState';
 import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
-import type { Submission, ReflectionResponse } from '@/types/database';
+import type { Submission, ReflectionResponse, Task } from '@/types/database';
 
-type View = 'setup' | 'lobby' | 'playing' | 'judging' | 'leaderboard' | 'reflection' | 'winner';
+type View = 'setup' | 'lobby' | 'task-select' | 'playing' | 'judging' | 'leaderboard' | 'reflection' | 'winner';
 
 export default function FacilitatorPage() {
   const [gameCode, setGameCode] = useState<string | null>(null);
@@ -28,6 +28,9 @@ export default function FacilitatorPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [aiAssistLoading, setAiAssistLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, { score: number; greg_quote: string; alex_quote: string }>>({});
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [usedTaskIds, setUsedTaskIds] = useState<Set<string>>(new Set());
 
   const { activeGameCode, loading: sessionLoading, setActiveGame, clearActiveGame } = useFacilitatorSession();
 
@@ -185,16 +188,62 @@ export default function FacilitatorPage() {
     }
   }, [game?.status, game?.current_round, game?.timer_started_at, game?.timer_paused_remaining, fetchLeaderboard]);
 
-  // Start the game
+  // Fetch available tasks
+  const fetchTasks = useCallback(async () => {
+    try {
+      const response = await fetch('/api/tasks');
+      if (response.ok) {
+        const tasks = await response.json();
+        setAvailableTasks(tasks);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  }, []);
+
+  // Track used tasks from game_tasks
+  useEffect(() => {
+    if (game?.game_tasks) {
+      const used = new Set(game.game_tasks.map((gt: { task_id: string }) => gt.task_id));
+      setUsedTaskIds(used);
+    }
+  }, [game?.game_tasks]);
+
+  // Show task selection before starting game
   const handleStartGame = async () => {
-    // Set timer_started_at to now
-    await updateGame({
-      status: 'active',
-      current_round: 1,
-      timer_started_at: new Date().toISOString(),
-      timer_paused_remaining: null,
-    });
-    setTimerRunning(true);
+    await fetchTasks();
+    setTaskSearchQuery('');
+    setView('task-select');
+  };
+
+  // Select a task and start the round
+  const handleSelectTask = async (taskId: string) => {
+    if (!gameCode) return;
+
+    try {
+      // Set the task for the next round
+      const nextRoundNum = (game?.current_round || 0) + 1;
+      await fetch(`/api/games/${gameCode}/task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId, round_number: nextRoundNum }),
+      });
+
+      // Start the round
+      await updateGame({
+        status: 'active',
+        current_round: nextRoundNum,
+        timer_seconds: timerSeconds,
+        timer_started_at: new Date().toISOString(),
+        timer_paused_remaining: null,
+      });
+
+      setTimerRunning(true);
+      setTimeRemaining(timerSeconds);
+      setView('playing');
+    } catch (error) {
+      console.error('Error starting round with task:', error);
+    }
   };
 
   // Start timer (resume)
@@ -344,21 +393,16 @@ export default function FacilitatorPage() {
     setView('leaderboard');
   };
 
-  // Next round
+  // Next round - show task selection
   const handleNextRound = async () => {
     if (game && game.current_round >= game.total_rounds) {
       // Game over, show reflection
       handleStartReflection();
     } else {
-      await updateGame({
-        status: 'active',
-        current_round: (game?.current_round || 0) + 1,
-        timer_seconds: timerSeconds,
-        timer_started_at: new Date().toISOString(),
-        timer_paused_remaining: null,
-      });
-      setTimerRunning(true);
-      setView('playing');
+      // Show task selection for next round
+      await fetchTasks();
+      setTaskSearchQuery('');
+      setView('task-select');
     }
   };
 
@@ -576,6 +620,108 @@ export default function FacilitatorPage() {
             </motion.div>
           )}
 
+          {/* Task Selection View */}
+          {view === 'task-select' && game && (
+            <motion.div
+              key="task-select"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                  Select Task for Round {(game.current_round || 0) + 1}
+                </h2>
+                <p className="text-[#FAFAF5]/60">
+                  Choose a task for the players to complete
+                </p>
+              </div>
+
+              {/* Search/Filter */}
+              <div className="mb-4">
+                <Input
+                  placeholder="Search tasks..."
+                  value={taskSearchQuery}
+                  onChange={(e) => setTaskSearchQuery(e.target.value)}
+                />
+              </div>
+
+              {/* Timer setting for this round */}
+              <Card className="mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#FAFAF5]/70">Round Timer:</span>
+                  <div className="flex gap-2">
+                    {[60, 90, 120, 180, 240, 300].map((secs) => (
+                      <button
+                        key={secs}
+                        onClick={() => setTimerSeconds(secs)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                          timerSeconds === secs
+                            ? 'bg-[#FFE500] text-[#0A0A0F]'
+                            : 'bg-[#FAFAF5]/10 text-[#FAFAF5]/70 hover:bg-[#FAFAF5]/20'
+                        }`}
+                      >
+                        {Math.floor(secs / 60)}:{(secs % 60).toString().padStart(2, '0')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Task List */}
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {availableTasks
+                  .filter(task =>
+                    task.title.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                    task.description.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                    (task.category || '').toLowerCase().includes(taskSearchQuery.toLowerCase())
+                  )
+                  .map((task) => {
+                    const isUsed = usedTaskIds.has(task.id);
+                    return (
+                      <Card
+                        key={task.id}
+                        className={`cursor-pointer transition-all hover:border-[#FFE500]/50 ${
+                          isUsed ? 'opacity-50' : ''
+                        }`}
+                        onClick={() => handleSelectTask(task.id)}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-bold text-[#FAFAF5]">{task.title}</h3>
+                              {task.category && (
+                                <span className="text-xs px-2 py-0.5 rounded bg-[#2D1B69] text-[#FFE500]">
+                                  {task.category}
+                                </span>
+                              )}
+                              {isUsed && (
+                                <span className="text-xs px-2 py-0.5 rounded bg-[#FAFAF5]/10 text-[#FAFAF5]/50">
+                                  Used
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-[#FAFAF5]/70 line-clamp-2">
+                              {task.description}
+                            </p>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            Select
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+              </div>
+
+              {availableTasks.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-[#FAFAF5]/50">Loading tasks...</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* Playing View */}
           {view === 'playing' && game && (
             <motion.div
@@ -676,6 +822,31 @@ export default function FacilitatorPage() {
                 </div>
               ) : (
                 <>
+                  {/* Task and Judging Criteria */}
+                  {game?.current_task?.task && (
+                    <Card className="mb-6 border-[#FFE500]/30">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="font-bold text-[#FFE500] mb-1">{game.current_task.task.title}</h3>
+                          <p className="text-sm text-[#FAFAF5]/70">{game.current_task.task.description}</p>
+                        </div>
+                      </div>
+                      {game.current_task.task.judging_criteria && (
+                        <div className="mt-4 pt-4 border-t border-[#FAFAF5]/10">
+                          <p className="text-xs text-[#FFE500] uppercase tracking-wide mb-2">Judging Criteria</p>
+                          <ul className="text-sm text-[#FAFAF5]/70 space-y-1">
+                            {game.current_task.task.judging_criteria.split('\n').map((criterion, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="text-[#FF2E6C]">•</span>
+                                <span>{criterion}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
                   {/* Progress indicator */}
                   <div className="mb-6 text-center">
                     <p className="text-[#FAFAF5]/60">

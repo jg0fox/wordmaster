@@ -295,9 +295,38 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
             exit={{ opacity: 0 }}
             className="text-center relative z-10 w-full max-w-6xl"
           >
-            <h2 className="text-4xl font-bold text-[#FFE500] mb-8" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+            <h2 className="text-4xl font-bold text-[#FFE500] mb-6" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
               Time to Judge!
             </h2>
+
+            {/* Task and Judging Criteria */}
+            {game.current_task?.task && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 rounded-2xl bg-[#FAFAF5]/5 p-6 border border-[#FFE500]/30 text-left"
+              >
+                <h3 className="text-2xl font-bold text-[#FFE500] mb-2" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+                  {game.current_task.task.title}
+                </h3>
+                <p className="text-lg text-[#FAFAF5]/80 mb-4">
+                  {game.current_task.task.description}
+                </p>
+                {game.current_task.task.judging_criteria && (
+                  <div className="pt-4 border-t border-[#FAFAF5]/10">
+                    <p className="text-sm text-[#FF2E6C] uppercase tracking-wide font-semibold mb-3">Judging Criteria</p>
+                    <ul className="space-y-2">
+                      {game.current_task.task.judging_criteria.split('\n').filter((c: string) => c.trim()).map((criterion: string, i: number) => (
+                        <li key={i} className="flex items-start gap-3 text-lg text-[#FAFAF5]/70">
+                          <span className="text-[#FFE500] mt-1">•</span>
+                          <span>{criterion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {submissions.length === 0 ? (
               <p className="text-2xl text-[#FAFAF5]/60">No submissions this round</p>
