@@ -15,7 +15,7 @@ const AVATARS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🐸',
 export default function PlayerGamePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
   const { game, fetchSubmissions, fetchLeaderboard } = useGameState({ code, autoRefresh: true });
-  const { player, loading: playerLoading, login, register } = usePlayer();
+  const { player, loading: playerLoading, login, register, logout } = usePlayer();
   const { submit, submitting, submitted, submission, reset } = useSubmission(code, player?.id || '');
 
   const [view, setView] = useState<PlayerView>('auth');
@@ -72,13 +72,13 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Check if player is already loaded
+  // Auto-join game when player is loaded from session AND game is available
   useEffect(() => {
-    if (!playerLoading && player) {
+    if (!playerLoading && player && game && !joinedGame) {
       setView('waiting');
-      joinGame();
+      joinGame(player.id);
     }
-  }, [playerLoading, player]);
+  }, [playerLoading, player, game, joinedGame]);
 
   // Track current round to detect round changes
   const currentRoundRef = useRef<number | null>(null);
@@ -224,7 +224,17 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
           </h1>
           {player && (
             <p className="text-sm text-[#FAFAF5]/60 mt-1">
-              Playing as {player.display_name}
+              Playing as {player.display_name}{' '}
+              <button
+                onClick={() => {
+                  logout();
+                  setJoinedGame(false);
+                  setView('auth');
+                }}
+                className="text-[#FFE500] hover:underline"
+              >
+                (not you?)
+              </button>
             </p>
           )}
         </div>
