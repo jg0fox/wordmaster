@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServiceClient();
     const body = await request.json();
-    const { email, display_name, avatar, team_id } = body;
+    const { email, display_name, avatar } = body;
 
     // Validate email
     if (!email || typeof email !== 'string') {
@@ -28,23 +28,22 @@ export async function POST(request: NextRequest) {
     // Check if player exists (use maybeSingle to avoid error when no match)
     const { data: existing } = await supabase
       .from('players')
-      .select('*, team:teams(*)')
+      .select('*')
       .eq('email', trimmedEmail)
       .maybeSingle();
 
     if (existing) {
       // Update if new info provided
-      if (display_name || avatar || team_id) {
+      if (display_name || avatar) {
         const updates: Record<string, string> = {};
         if (display_name) updates.display_name = display_name;
         if (avatar) updates.avatar = avatar;
-        if (team_id) updates.team_id = team_id;
 
         const { data: updated } = await supabase
           .from('players')
           .update(updates)
           .eq('id', existing.id)
-          .select('*, team:teams(*)')
+          .select('*')
           .single();
 
         return NextResponse.json(updated || existing);
@@ -78,9 +77,8 @@ export async function POST(request: NextRequest) {
         email: trimmedEmail,
         display_name: trimmedName,
         avatar: avatar || null,
-        team_id: team_id || null,
       })
-      .select('*, team:teams(*)')
+      .select('*')
       .single();
 
     if (error) {
@@ -106,7 +104,7 @@ export async function GET(request: NextRequest) {
       // Get player by email (use maybeSingle to avoid error when no match)
       const { data: player } = await supabase
         .from('players')
-        .select('*, team:teams(*)')
+        .select('*')
         .eq('email', email.toLowerCase())
         .maybeSingle();
 
@@ -120,7 +118,7 @@ export async function GET(request: NextRequest) {
     // List all players
     const { data: players } = await supabase
       .from('players')
-      .select('*, team:teams(*)')
+      .select('*')
       .order('display_name', { ascending: true })
       .limit(100);
 

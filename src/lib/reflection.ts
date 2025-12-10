@@ -118,7 +118,6 @@ export async function generateReflection(
     task_title: s.task.title,
     task_description: s.task.description,
     player_name: s.player.display_name,
-    team: s.player.team?.name || 'No team',
     content: s.submission.content,
     score: s.submission.ai_score,
     greg_feedback: s.submission.greg_quote,

@@ -35,7 +35,7 @@ export async function POST(
     // Check if player exists
     const { data: player, error: playerError } = await supabase
       .from('players')
-      .select('*, team:teams(*)')
+      .select('*')
       .eq('id', player_id)
       .single();
 

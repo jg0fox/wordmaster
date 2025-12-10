@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useGameState, useFacilitatorSession } from '@/hooks/useGameState';
-import type { Submission, ReflectionResponse, Team } from '@/types/database';
+import type { Submission, ReflectionResponse } from '@/types/database';
 
 type View = 'setup' | 'lobby' | 'playing' | 'judging' | 'leaderboard' | 'reflection' | 'winner';
 
@@ -24,11 +24,7 @@ export default function FacilitatorPage() {
   const [awardingPoints, setAwardingPoints] = useState(false);
   const [reflection, setReflection] = useState<ReflectionResponse | null>(null);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showCreateTeam, setShowCreateTeam] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [creatingTeam, setCreatingTeam] = useState(false);
   const [aiAssistLoading, setAiAssistLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, { score: number; greg_quote: string; alex_quote: string }>>({});
 
@@ -38,21 +34,6 @@ export default function FacilitatorPage() {
     code: gameCode || '',
     autoRefresh: true,
   });
-
-  // Load teams
-  const loadTeams = useCallback(async () => {
-    try {
-      const res = await fetch('/api/teams');
-      const data = await res.json();
-      setTeams(Array.isArray(data) ? data : []);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTeams();
-  }, [loadTeams]);
 
   // Check for existing active game on mount
   useEffect(() => {
@@ -388,45 +369,6 @@ export default function FacilitatorPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Update player's team
-  const handleUpdatePlayerTeam = async (playerId: string, teamId: string | null) => {
-    try {
-      await fetch(`/api/players/${playerId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ team_id: teamId }),
-      });
-      // Refresh game to get updated player data
-      refresh();
-    } catch (error) {
-      console.error('Error updating player team:', error);
-    }
-  };
-
-  // Create new team
-  const handleCreateTeam = async () => {
-    if (!newTeamName.trim()) return;
-
-    setCreatingTeam(true);
-    try {
-      const res = await fetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newTeamName.trim() }),
-      });
-
-      if (res.ok) {
-        setNewTeamName('');
-        setShowCreateTeam(false);
-        await loadTeams();
-      }
-    } catch (error) {
-      console.error('Error creating team:', error);
-    } finally {
-      setCreatingTeam(false);
-    }
-  };
-
   // End game and start new one
   const handleNewGame = () => {
     clearActiveGame();
@@ -552,36 +494,6 @@ export default function FacilitatorPage() {
                 )}
               </div>
 
-              {/* Teams Section */}
-              <Card className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-semibold">Teams</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCreateTeam(true)}
-                  >
-                    + New Team
-                  </Button>
-                </div>
-                {teams.length === 0 ? (
-                  <p className="text-[#FAFAF5]/50 text-center py-4">
-                    No teams created yet. Create teams to group players.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {teams.map((team) => (
-                      <span
-                        key={team.id}
-                        className="px-3 py-1 rounded-full bg-[#2D1B69]/50 text-sm"
-                      >
-                        {team.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </Card>
-
               {/* Players Section */}
               <Card className="mb-6">
                 <div className="flex justify-between items-center mb-4">
@@ -600,16 +512,6 @@ export default function FacilitatorPage() {
                         <p className="font-medium">{gp.player?.display_name}</p>
                         <p className="text-xs text-[#FAFAF5]/50">{gp.player?.email}</p>
                       </div>
-                      <select
-                        value={gp.player?.team_id || ''}
-                        onChange={(e) => handleUpdatePlayerTeam(gp.player?.id || '', e.target.value || null)}
-                        className="px-3 py-2 rounded-lg bg-[#FAFAF5]/10 border border-[#FAFAF5]/20 text-[#FAFAF5] text-sm"
-                      >
-                        <option value="">No team</option>
-                        {teams.map((team) => (
-                          <option key={team.id} value={team.id}>{team.name}</option>
-                        ))}
-                      </select>
                     </div>
                   ))}
                 </div>
@@ -657,32 +559,6 @@ export default function FacilitatorPage() {
                 </div>
               )}
 
-              {/* Create team modal */}
-              {showCreateTeam && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                  <Card className="max-w-sm mx-4">
-                    <h3 className="text-xl font-bold mb-4">Create Team</h3>
-                    <Input
-                      label="Team Name"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                      placeholder="e.g., Red Dragons"
-                    />
-                    <div className="flex gap-4 mt-6">
-                      <Button onClick={() => setShowCreateTeam(false)} variant="ghost" className="flex-1">
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleCreateTeam}
-                        disabled={!newTeamName.trim() || creatingTeam}
-                        className="flex-1"
-                      >
-                        {creatingTeam ? 'Creating...' : 'Create'}
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-              )}
             </motion.div>
           )}
 
@@ -809,9 +685,6 @@ export default function FacilitatorPage() {
                               <span className="text-3xl">{submission.player?.avatar || '👤'}</span>
                               <div>
                                 <h3 className="font-bold">{submission.player?.display_name}</h3>
-                                {submission.player?.team && (
-                                  <p className="text-xs text-[#FAFAF5]/50">{submission.player.team.name}</p>
-                                )}
                               </div>
                             </div>
                             <div className="ml-auto flex items-center gap-2">
@@ -918,6 +791,31 @@ export default function FacilitatorPage() {
                   ))}
                 </div>
               </Card>
+
+              {/* Timer adjustment for next round */}
+              {game && game.current_round < game.total_rounds && (
+                <Card className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Next Round Timer</h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {[60, 90, 120, 180, 240, 300].map((secs) => (
+                      <button
+                        key={secs}
+                        onClick={() => setTimerSeconds(secs)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          timerSeconds === secs
+                            ? 'bg-[#FFE500] text-[#0A0A0F]'
+                            : 'bg-[#FAFAF5]/10 text-[#FAFAF5]/70 hover:bg-[#FAFAF5]/20'
+                        }`}
+                      >
+                        {Math.floor(secs / 60)}:{(secs % 60).toString().padStart(2, '0')}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-center text-[#FAFAF5]/50 text-sm mt-3">
+                    Current: {Math.floor(timerSeconds / 60)}:{(timerSeconds % 60).toString().padStart(2, '0')}
+                  </p>
+                </Card>
+              )}
 
               <div className="flex justify-center">
                 <Button onClick={handleNextRound} size="lg">

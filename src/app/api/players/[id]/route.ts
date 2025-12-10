@@ -13,7 +13,7 @@ export async function GET(
     // Get player
     const { data: player, error } = await supabase
       .from('players')
-      .select('*, team:teams(*)')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -102,7 +102,7 @@ export async function PATCH(
     const supabase = createServiceClient();
     const body = await request.json();
 
-    const allowedFields = ['display_name', 'avatar', 'team_id'];
+    const allowedFields = ['display_name', 'avatar'];
     const updates: Record<string, string | null> = {};
 
     for (const field of allowedFields) {
@@ -119,7 +119,7 @@ export async function PATCH(
       .from('players')
       .update(updates)
       .eq('id', id)
-      .select('*, team:teams(*)')
+      .select('*')
       .single();
 
     if (error) {

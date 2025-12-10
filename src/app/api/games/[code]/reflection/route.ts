@@ -43,10 +43,7 @@ export async function POST(
       .from('submissions')
       .select(`
         *,
-        player:players(
-          *,
-          team:teams(*)
-        )
+        player:players(*)
       `)
       .in('game_task_id', (gameTasks || []).map(gt => gt.id));
 

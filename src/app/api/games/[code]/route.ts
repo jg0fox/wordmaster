@@ -26,10 +26,7 @@ export async function GET(
       .from('game_players')
       .select(`
         *,
-        player:players(
-          *,
-          team:teams(*)
-        )
+        player:players(*)
       `)
       .eq('game_id', game.id)
       .order('joined_at', { ascending: true });

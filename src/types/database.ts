@@ -2,21 +2,12 @@
 
 export type GameStatus = 'lobby' | 'active' | 'judging' | 'leaderboard' | 'reflection' | 'completed';
 
-export interface Team {
-  id: string;
-  name: string;
-  created_at: string;
-}
-
 export interface Player {
   id: string;
   email: string;
   display_name: string;
   avatar: string | null;
-  team_id: string | null;
   created_at: string;
-  // Joined from teams table
-  team?: Team;
 }
 
 export interface Game {
@@ -83,18 +74,8 @@ export interface LeaderboardEntry {
   player_id: string;
   display_name: string;
   avatar: string | null;
-  team_name: string | null;
   total_score: number;
   games_played: number;
-  average_score: number;
-}
-
-export interface TeamLeaderboardEntry {
-  team_id: string;
-  team_name: string;
-  total_score: number;
-  games_played: number;
-  player_count: number;
   average_score: number;
 }
 

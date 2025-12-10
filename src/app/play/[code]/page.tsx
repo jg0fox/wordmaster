@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useGameState, usePlayer, useSubmission } from '@/hooks/useGameState';
-import type { Team, Submission } from '@/types/database';
+import type { Submission } from '@/types/database';
 
 type PlayerView = 'auth' | 'waiting' | 'playing' | 'submitted' | 'results' | 'leaderboard' | 'winner';
 
@@ -22,8 +22,6 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [avatar, setAvatar] = useState('😀');
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [isNewPlayer, setIsNewPlayer] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [responseText, setResponseText] = useState('');
@@ -32,14 +30,6 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerExpired, setTimerExpired] = useState(false);
   const [leaderboard, setLeaderboard] = useState<{ rank: number; display_name: string; score: number; avatar?: string }[]>([]);
-
-  // Load teams
-  useEffect(() => {
-    fetch('/api/teams')
-      .then(res => res.json())
-      .then(data => setTeams(data))
-      .catch(() => {});
-  }, []);
 
   // Timer sync from server timestamp
   useEffect(() => {
@@ -176,7 +166,6 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
       email,
       display_name: displayName,
       avatar,
-      team_id: selectedTeam || undefined,
     });
 
     if (newPlayer) {
@@ -298,24 +287,6 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                         ))}
                       </div>
                     </div>
-
-                    {teams.length > 0 && (
-                      <div>
-                        <label className="block text-sm font-medium text-[#FAFAF5]/80 mb-1">
-                          Team (optional)
-                        </label>
-                        <select
-                          value={selectedTeam}
-                          onChange={(e) => setSelectedTeam(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg bg-[#FAFAF5]/10 border border-[#FAFAF5]/20 text-[#FAFAF5]"
-                        >
-                          <option value="">No team</option>
-                          {teams.map((team) => (
-                            <option key={team.id} value={team.id}>{team.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
 
                     <Button
                       onClick={handleRegister}

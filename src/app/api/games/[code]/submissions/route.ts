@@ -142,10 +142,7 @@ export async function GET(
       .from('submissions')
       .select(`
         *,
-        player:players(
-          *,
-          team:teams(*)
-        )
+        player:players(*)
       `)
       .eq('game_task_id', gameTask.id)
       .order('submitted_at', { ascending: true });

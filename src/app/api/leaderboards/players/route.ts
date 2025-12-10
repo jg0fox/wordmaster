@@ -6,14 +6,13 @@ export async function GET() {
   try {
     const supabase = createServiceClient();
 
-    // Get all players with their game history
+    // Get all players
     const { data: players } = await supabase
       .from('players')
       .select(`
         id,
         display_name,
-        avatar,
-        team:teams(name)
+        avatar
       `);
 
     if (!players || players.length === 0) {
@@ -48,14 +47,10 @@ export async function GET() {
       const gamesPlayed = playerGames.length;
       const averageScore = gamesPlayed > 0 ? totalScore / gamesPlayed : 0;
 
-      // Handle team which might be an array or single object
-      const team = Array.isArray(player.team) ? player.team[0] : player.team;
-
       return {
         player_id: player.id,
         display_name: player.display_name,
         avatar: player.avatar,
-        team_name: team?.name || null,
         total_score: totalScore,
         games_played: gamesPlayed,
         average_score: Math.round(averageScore * 100) / 100,

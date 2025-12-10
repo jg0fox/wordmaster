@@ -274,7 +274,6 @@ export function usePlayer() {
     email: string;
     display_name: string;
     avatar?: string;
-    team_id?: string;
   }) => {
     try {
       const response = await fetch('/api/players', {

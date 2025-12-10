@@ -297,9 +297,6 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                       <span className="text-4xl">{submission.player?.avatar || '👤'}</span>
                       <div>
                         <h3 className="text-2xl font-bold">{submission.player?.display_name}</h3>
-                        {submission.player?.team && (
-                          <p className="text-sm text-[#FAFAF5]/50">{submission.player.team.name}</p>
-                        )}
                       </div>
                     </div>
                     <div className="bg-[#0A0A0F] rounded-xl p-4 font-mono text-lg">

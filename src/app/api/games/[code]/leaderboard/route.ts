@@ -26,10 +26,7 @@ export async function GET(
       .from('game_players')
       .select(`
         *,
-        player:players(
-          *,
-          team:teams(*)
-        )
+        player:players(*)
       `)
       .eq('game_id', game.id)
       .order('score', { ascending: false });
@@ -44,37 +41,14 @@ export async function GET(
       player_id: gp.player_id,
       display_name: gp.player?.display_name || 'Unknown',
       avatar: gp.player?.avatar,
-      team_name: gp.player?.team?.name || null,
       score: gp.score,
     }));
-
-    // Calculate team scores if teams exist
-    const teamScores: Record<string, { name: string; score: number; players: number }> = {};
-
-    for (const gp of gamePlayers || []) {
-      const teamName = gp.player?.team?.name;
-      if (teamName) {
-        if (!teamScores[teamName]) {
-          teamScores[teamName] = { name: teamName, score: 0, players: 0 };
-        }
-        teamScores[teamName].score += gp.score;
-        teamScores[teamName].players += 1;
-      }
-    }
-
-    const teamLeaderboard = Object.values(teamScores)
-      .sort((a, b) => b.score - a.score)
-      .map((team, index) => ({
-        rank: index + 1,
-        ...team,
-      }));
 
     return NextResponse.json({
       game_id: game.id,
       current_round: game.current_round,
       total_rounds: game.total_rounds,
       leaderboard,
-      team_leaderboard: teamLeaderboard,
     });
   } catch (error) {
     console.error('Error in GET /api/games/[code]/leaderboard:', error);
