@@ -27,12 +27,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'avatar exceeds maximum length' }, { status: 400 });
     }
 
+    // Generate a unique placeholder email (database requires email field)
+    const uniqueId = crypto.randomUUID();
+    const placeholderEmail = `player_${uniqueId}@wordwrangler.local`;
+
     const { data: player, error } = await supabase
       .from('players')
       .insert({
         display_name: trimmedName,
         avatar: avatar || null,
-        email: null,
+        email: placeholderEmail,
       })
       .select('*')
       .single();
