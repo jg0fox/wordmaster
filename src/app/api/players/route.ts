@@ -1,60 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 
-// POST /api/players - Create or get player by email
+// POST /api/players - Create a new player (no email required)
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServiceClient();
     const body = await request.json();
-    const { email, display_name, avatar } = body;
+    const { display_name, avatar } = body;
 
-    // Validate email
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'email is required' }, { status: 400 });
-    }
-
-    const trimmedEmail = email.trim().toLowerCase();
-
-    // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
-    }
-
-    if (trimmedEmail.length > 255) {
-      return NextResponse.json({ error: 'Email exceeds maximum length' }, { status: 400 });
-    }
-
-    // Check if player exists (use maybeSingle to avoid error when no match)
-    const { data: existing } = await supabase
-      .from('players')
-      .select('*')
-      .eq('email', trimmedEmail)
-      .maybeSingle();
-
-    if (existing) {
-      // Update if new info provided
-      if (display_name || avatar) {
-        const updates: Record<string, string> = {};
-        if (display_name) updates.display_name = display_name;
-        if (avatar) updates.avatar = avatar;
-
-        const { data: updated } = await supabase
-          .from('players')
-          .update(updates)
-          .eq('id', existing.id)
-          .select('*')
-          .single();
-
-        return NextResponse.json(updated || existing);
-      }
-
-      return NextResponse.json(existing);
-    }
-
-    // Create new player - validate display_name
+    // Validate display_name
     if (!display_name || typeof display_name !== 'string') {
-      return NextResponse.json({ error: 'display_name is required for new players' }, { status: 400 });
+      return NextResponse.json({ error: 'display_name is required' }, { status: 400 });
     }
 
     const trimmedName = display_name.trim();
@@ -74,9 +30,9 @@ export async function POST(request: NextRequest) {
     const { data: player, error } = await supabase
       .from('players')
       .insert({
-        email: trimmedEmail,
         display_name: trimmedName,
         avatar: avatar || null,
+        email: null,
       })
       .select('*')
       .single();
@@ -93,27 +49,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/players - Search players
-export async function GET(request: NextRequest) {
+// GET /api/players - List players
+export async function GET() {
   try {
     const supabase = createServiceClient();
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-
-    if (email) {
-      // Get player by email (use maybeSingle to avoid error when no match)
-      const { data: player } = await supabase
-        .from('players')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .maybeSingle();
-
-      if (!player) {
-        return NextResponse.json({ error: 'Player not found' }, { status: 404 });
-      }
-
-      return NextResponse.json(player);
-    }
 
     // List all players
     const { data: players } = await supabase

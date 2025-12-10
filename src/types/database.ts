@@ -4,7 +4,7 @@ export type GameStatus = 'lobby' | 'active' | 'judging' | 'leaderboard' | 'refle
 
 export interface Player {
   id: string;
-  email: string;
+  email: string | null;
   display_name: string;
   avatar: string | null;
   created_at: string;

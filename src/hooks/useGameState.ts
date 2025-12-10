@@ -255,23 +255,7 @@ export function usePlayer() {
     setLoading(false);
   }, []);
 
-  const login = useCallback(async (email: string) => {
-    try {
-      const response = await fetch(`/api/players?email=${encodeURIComponent(email)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPlayer(data);
-        localStorage.setItem('wordwrangler_player', JSON.stringify(data));
-        return data;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }, []);
-
   const register = useCallback(async (data: {
-    email: string;
     display_name: string;
     avatar?: string;
   }) => {
@@ -322,7 +306,6 @@ export function usePlayer() {
   return {
     player,
     loading,
-    login,
     register,
     logout,
     updatePlayer,

@@ -15,14 +15,12 @@ const AVATARS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🐸',
 export default function PlayerGamePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
   const { game, fetchSubmissions, fetchLeaderboard } = useGameState({ code, autoRefresh: true });
-  const { player, loading: playerLoading, login, register, logout } = usePlayer();
+  const { player, loading: playerLoading, register, logout } = usePlayer();
   const { submit, submitting, submitted, submission, reset } = useSubmission(code, player?.id || '');
 
   const [view, setView] = useState<PlayerView>('auth');
-  const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [avatar, setAvatar] = useState('😀');
-  const [isNewPlayer, setIsNewPlayer] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [mySubmission, setMySubmission] = useState<Submission | null>(null);
@@ -161,29 +159,12 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   };
 
-  // Check email
-  const handleCheckEmail = async () => {
-    if (!email.trim()) return;
-
-    setAuthLoading(true);
-    const existingPlayer = await login(email);
-
-    if (existingPlayer) {
-      setView('waiting');
-      joinGame(existingPlayer.id);
-    } else {
-      setIsNewPlayer(true);
-    }
-    setAuthLoading(false);
-  };
-
   // Register new player
   const handleRegister = async () => {
-    if (!email.trim() || !displayName.trim()) return;
+    if (!displayName.trim()) return;
 
     setAuthLoading(true);
     const newPlayer = await register({
-      email,
       display_name: displayName,
       avatar,
     });
@@ -268,65 +249,51 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
               exit={{ opacity: 0, y: -20 }}
             >
               <Card>
-                {!isNewPlayer ? (
-                  <div className="space-y-4">
-                    <h2 className="text-xl font-semibold text-center">Join the Game</h2>
-                    <Input
-                      label="Email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                    />
-                    <Button
-                      onClick={handleCheckEmail}
-                      disabled={authLoading || !email.trim()}
-                      className="w-full"
-                    >
-                      {authLoading ? 'Checking...' : 'Continue'}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <h2 className="text-xl font-semibold text-center">Create Your Profile</h2>
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold text-center">Join the Game</h2>
 
+                  <div>
                     <Input
-                      label="Display Name"
+                      label="Your Name"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Your name"
+                      placeholder="e.g., Mystery Maven, Sarah, The Boss..."
                     />
-
-                    <div>
-                      <label className="block text-sm font-medium text-[#FAFAF5]/80 mb-2">
-                        Pick an Avatar
-                      </label>
-                      <div className="grid grid-cols-8 gap-2">
-                        {AVATARS.map((a) => (
-                          <button
-                            key={a}
-                            onClick={() => setAvatar(a)}
-                            className={`text-2xl p-2 rounded-lg transition-all ${
-                              avatar === a
-                                ? 'bg-[#FFE500]/30 scale-110'
-                                : 'bg-[#FAFAF5]/5 hover:bg-[#FAFAF5]/10'
-                            }`}
-                          >
-                            {a}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={handleRegister}
-                      disabled={authLoading || !displayName.trim()}
-                      className="w-full"
-                    >
-                      {authLoading ? 'Creating...' : 'Join Game'}
-                    </Button>
+                    <p className="text-xs text-[#FAFAF5]/50 mt-2">
+                      Use a fictional name for a big reveal at the end, your real name,
+                      or get sneaky and use someone else&apos;s name!
+                    </p>
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#FAFAF5]/80 mb-2">
+                      Pick an Avatar
+                    </label>
+                    <div className="grid grid-cols-8 gap-2">
+                      {AVATARS.map((a) => (
+                        <button
+                          key={a}
+                          onClick={() => setAvatar(a)}
+                          className={`text-2xl p-2 rounded-lg transition-all ${
+                            avatar === a
+                              ? 'bg-[#FFE500]/30 scale-110'
+                              : 'bg-[#FAFAF5]/5 hover:bg-[#FAFAF5]/10'
+                          }`}
+                        >
+                          {a}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleRegister}
+                    disabled={authLoading || !displayName.trim()}
+                    className="w-full"
+                  >
+                    {authLoading ? 'Joining...' : 'Join Game'}
+                  </Button>
+                </div>
               </Card>
             </motion.div>
           )}
