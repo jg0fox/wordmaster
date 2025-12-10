@@ -835,10 +835,10 @@ export default function FacilitatorPage() {
                         <div className="mt-4 pt-4 border-t border-[#FAFAF5]/10">
                           <p className="text-xs text-[#FFE500] uppercase tracking-wide mb-2">Judging Criteria</p>
                           <ul className="text-sm text-[#FAFAF5]/70 space-y-1">
-                            {game.current_task.task.judging_criteria.split('\n').map((criterion, i) => (
+                            {game.current_task.task.judging_criteria.split(';').filter(c => c.trim()).map((criterion, i) => (
                               <li key={i} className="flex items-start gap-2">
                                 <span className="text-[#FF2E6C]">•</span>
-                                <span>{criterion}</span>
+                                <span>{criterion.trim()}</span>
                               </li>
                             ))}
                           </ul>

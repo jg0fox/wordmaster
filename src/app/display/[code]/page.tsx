@@ -316,10 +316,10 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                   <div className="pt-4 border-t border-[#FAFAF5]/10">
                     <p className="text-sm text-[#FF2E6C] uppercase tracking-wide font-semibold mb-3">Judging Criteria</p>
                     <ul className="space-y-2">
-                      {game.current_task.task.judging_criteria.split('\n').filter((c: string) => c.trim()).map((criterion: string, i: number) => (
+                      {game.current_task.task.judging_criteria.split(';').filter((c: string) => c.trim()).map((criterion: string, i: number) => (
                         <li key={i} className="flex items-start gap-3 text-lg text-[#FAFAF5]/70">
                           <span className="text-[#FFE500] mt-1">•</span>
-                          <span>{criterion}</span>
+                          <span>{criterion.trim()}</span>
                         </li>
                       ))}
                     </ul>

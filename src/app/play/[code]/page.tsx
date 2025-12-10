@@ -490,10 +490,10 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                       <div className="pt-3 border-t border-[#FAFAF5]/10">
                         <p className="text-xs text-[#FF2E6C] uppercase tracking-wide font-semibold mb-2">Judging Criteria</p>
                         <ul className="space-y-1">
-                          {game.current_task.task.judging_criteria.split('\n').filter((c: string) => c.trim()).map((criterion: string, i: number) => (
+                          {game.current_task.task.judging_criteria.split(';').filter((c: string) => c.trim()).map((criterion: string, i: number) => (
                             <li key={i} className="flex items-start gap-2 text-xs text-[#FAFAF5]/60">
                               <span className="text-[#FFE500]">•</span>
-                              <span>{criterion}</span>
+                              <span>{criterion.trim()}</span>
                             </li>
                           ))}
                         </ul>
