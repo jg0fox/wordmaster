@@ -11,14 +11,19 @@ export async function GET(
     const { code } = await params;
     const supabase = createServiceClient();
 
-    // Get game with reflection
+    // Get game with reflection - select all to avoid column issues
     const { data: game, error: gameError } = await supabase
       .from('games')
-      .select('reflection')
+      .select('*')
       .eq('code', code.toUpperCase())
       .single();
 
-    if (gameError || !game) {
+    if (gameError) {
+      console.error('Error fetching game for reflection:', gameError);
+      return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+    }
+
+    if (!game) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
@@ -105,10 +110,18 @@ export async function POST(
     });
 
     // Store reflection in database
-    await supabase
+    const { error: updateError } = await supabase
       .from('games')
       .update({ reflection })
       .eq('id', game.id);
+
+    if (updateError) {
+      console.error('Error storing reflection in database:', updateError);
+      // Still return the reflection even if storage fails
+      // The facilitator will have it, but other views won't
+    } else {
+      console.log('Reflection stored successfully for game:', game.id);
+    }
 
     return NextResponse.json(reflection);
   } catch (error) {
