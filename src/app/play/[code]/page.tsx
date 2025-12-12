@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useState, useEffect, useRef } from 'react';
+import React, { use, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -105,8 +105,21 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   }, [playerLoading, player, game, joinedGame]);
 
+  // Fetch my submission for current round (memoized for dependency array)
+  const fetchMySubmission = useCallback(async () => {
+    if (!player) return;
+
+    const subs = await fetchSubmissions();
+    const mine = subs.find((s: Submission) => s.player_id === player.id);
+    if (mine) {
+      setMySubmission(mine);
+    }
+  }, [player, fetchSubmissions]);
+
   // Track current round to detect round changes
   const currentRoundRef = useRef<number | null>(null);
+  const previousStatusRef = useRef<string | null>(null);
+  const autoSubmittingRef = useRef(false);
 
   // Handle game state changes
   useEffect(() => {
@@ -116,6 +129,32 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     const roundChanged = currentRoundRef.current !== null &&
                          currentRoundRef.current !== game.current_round;
     currentRoundRef.current = game.current_round;
+
+    // Detect status transition from active to judging (round ended)
+    const roundEnded = previousStatusRef.current === 'active' && game.status === 'judging';
+    previousStatusRef.current = game.status;
+
+    // Auto-submit when round ends if player has content but hasn't submitted
+    if (roundEnded && view === 'playing' && !submitted && !mySubmission && !autoSubmittingRef.current) {
+      const hasContent = responseText.trim() && responseText !== '<p></p>' && responseText !== '<p><br></p>';
+      if (hasContent) {
+        autoSubmittingRef.current = true;
+        console.log('Auto-submitting response on round end');
+        submit(responseText).then((result) => {
+          autoSubmittingRef.current = false;
+          if (result) {
+            setMySubmission(result);
+          }
+          fetchMySubmission();
+          setView('results');
+        }).catch(() => {
+          autoSubmittingRef.current = false;
+          fetchMySubmission();
+          setView('results');
+        });
+        return; // Don't proceed with normal state handling until auto-submit completes
+      }
+    }
 
     if (game.status === 'lobby') {
       setView('waiting');
@@ -151,7 +190,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
       });
       setView('winner');
     }
-  }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard]);
+  }, [game?.status, game?.current_round, player, submitted, mySubmission, reset, fetchLeaderboard, view, responseText, submit, fetchMySubmission]);
 
   // Poll leaderboard during leaderboard/completed states
   useEffect(() => {
@@ -251,16 +290,7 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
     }
   };
 
-  // Fetch my submission for current round
-  const fetchMySubmission = async () => {
-    if (!player) return;
-
-    const subs = await fetchSubmissions();
-    const mine = subs.find((s: Submission) => s.player_id === player.id);
-    if (mine) {
-      setMySubmission(mine);
-    }
-  };
+  // Note: fetchMySubmission is defined earlier using useCallback
 
   // Note: Round reset is now handled in the main view effect above
 
