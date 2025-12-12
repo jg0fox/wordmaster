@@ -425,7 +425,7 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center relative z-10 w-full max-w-4xl"
+            className="text-center relative z-10 w-full max-w-5xl"
           >
             {/* Taskmaster Image */}
             <motion.div
