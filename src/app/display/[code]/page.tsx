@@ -4,6 +4,7 @@ import { use, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
+import { AllSubmissions } from '@/components/ui/AllSubmissions';
 import type { Submission, ReflectionResponse } from '@/types/database';
 
 export default function DisplayPage({ params }: { params: Promise<{ code: string }> }) {
@@ -495,6 +496,9 @@ export default function DisplayPage({ params }: { params: Promise<{ code: string
                 >
                   <p className="text-2xl font-semibold text-[#FAFAF5]">{reflection.closing_provocation}</p>
                 </motion.div>
+
+                {/* All Submissions - Collapsible */}
+                <AllSubmissions gameCode={code} variant="display" />
               </div>
             )}
           </motion.div>

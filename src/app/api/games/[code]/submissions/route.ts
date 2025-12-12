@@ -101,7 +101,7 @@ export async function POST(
   }
 }
 
-// GET /api/games/[code]/submissions - Get submissions for current round
+// GET /api/games/[code]/submissions - Get submissions for current round or all rounds
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
@@ -111,6 +111,7 @@ export async function GET(
     const supabase = createServiceClient();
     const { searchParams } = new URL(request.url);
     const round = searchParams.get('round');
+    const all = searchParams.get('all') === 'true';
 
     // Get game
     const { data: game, error: gameError } = await supabase
@@ -123,6 +124,43 @@ export async function GET(
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
+    // If all=true, fetch all submissions grouped by round
+    if (all) {
+      // Get all game tasks with task details
+      const { data: gameTasks } = await supabase
+        .from('game_tasks')
+        .select(`
+          *,
+          task:tasks(*)
+        `)
+        .eq('game_id', game.id)
+        .order('round_number', { ascending: true });
+
+      if (!gameTasks || gameTasks.length === 0) {
+        return NextResponse.json({ rounds: [] });
+      }
+
+      // Get all submissions for all tasks
+      const { data: allSubmissions } = await supabase
+        .from('submissions')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .in('game_task_id', gameTasks.map(gt => gt.id))
+        .order('submitted_at', { ascending: true });
+
+      // Group submissions by round
+      const rounds = gameTasks.map(gameTask => ({
+        round_number: gameTask.round_number,
+        task: gameTask.task,
+        submissions: (allSubmissions || []).filter(s => s.game_task_id === gameTask.id)
+      }));
+
+      return NextResponse.json({ rounds });
+    }
+
+    // Single round logic (existing behavior)
     const roundNumber = round ? parseInt(round) : game.current_round;
 
     // Get game task for the round (use maybeSingle for safe handling)

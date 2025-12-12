@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
+import { AllSubmissions } from '@/components/ui/AllSubmissions';
 import { useGameState, usePlayer, useSubmission } from '@/hooks/useGameState';
 import type { Submission, ReflectionResponse } from '@/types/database';
 
@@ -657,6 +658,9 @@ export default function PlayerGamePage({ params }: { params: Promise<{ code: str
                     <div className="rounded-lg bg-[#FFE500]/10 p-4 text-center">
                       <p className="text-sm font-semibold text-[#FAFAF5]">{reflection.closing_provocation}</p>
                     </div>
+
+                    {/* All Submissions - Collapsible */}
+                    <AllSubmissions gameCode={code} variant="player" />
                   </div>
                 )}
               </Card>

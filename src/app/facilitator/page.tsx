@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useGameState, useFacilitatorSession } from '@/hooks/useGameState';
 import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
+import { AllSubmissions } from '@/components/ui/AllSubmissions';
 import type { Submission, ReflectionResponse, Task } from '@/types/database';
 
 type View = 'setup' | 'lobby' | 'task-select' | 'playing' | 'judging' | 'leaderboard' | 'reflection' | 'winner';
@@ -1137,6 +1138,9 @@ export default function FacilitatorPage() {
                   <Card variant="glow" className="text-center">
                     <p className="text-xl font-semibold">{reflection.closing_provocation}</p>
                   </Card>
+
+                  {/* All Submissions - Collapsible */}
+                  {gameCode && <AllSubmissions gameCode={gameCode} variant="facilitator" />}
 
                   <div className="flex justify-center">
                     <Button onClick={async () => {
