@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wordwrangler Game Report - Design Studio West</title>
+  <style>
+    :root {
+      --bg: #0A0A0F;
+      --surface: #1a1a24;
+      --border: #2d2d3a;
+      --text: #FAFAF5;
+      --text-muted: rgba(250, 250, 245, 0.6);
+      --accent: #FFE500;
+      --pink: #FF2E6C;
+      --purple: #2D1B69;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.5rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .meta {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    .meta span {
+      margin: 0 1rem;
+    }
+
+    h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--accent);
+      font-size: 1.5rem;
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h3 {
+      color: var(--pink);
+      font-size: 1.2rem;
+      margin: 1.5rem 0 0.75rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card.glow {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(255, 229, 0, 0.1);
+    }
+
+    /* Leaderboard */
+    .leaderboard {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .leaderboard-entry {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .leaderboard-entry.winner {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, rgba(255, 229, 0, 0.1), transparent);
+    }
+
+    .rank {
+      font-size: 1.5rem;
+      font-weight: bold;
+      width: 2.5rem;
+      text-align: center;
+    }
+
+    .avatar {
+      font-size: 1.5rem;
+    }
+
+    .player-name {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .score {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    /* Tasks */
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .task-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--text);
+    }
+
+    .task-category {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      background: var(--purple);
+      color: var(--accent);
+      border-radius: 999px;
+    }
+
+    .task-description {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .criteria {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Submissions */
+    .submission {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .submission-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    .submission-content {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .submission-content p {
+      margin-bottom: 0.5rem;
+    }
+
+    .submission-content ol, .submission-content ul {
+      margin-left: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Reflection */
+    .reflection-quote {
+      font-size: 1.1rem;
+      font-style: italic;
+      padding: 1rem;
+      background: rgba(255, 229, 0, 0.05);
+      border-left: 3px solid var(--accent);
+      margin: 1rem 0;
+    }
+
+    .insight-title {
+      color: var(--pink);
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .insight-question {
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: 0.5rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat {
+      text-align: center;
+      padding: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .round-section {
+      margin-bottom: 3rem;
+    }
+
+    .taskmaster-image {
+      width: 120px;
+      height: auto;
+      border-radius: 8px;
+      border: 2px solid var(--accent);
+      margin: 1rem auto;
+      display: block;
+    }
+
+    .image-credit {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .image-credit a {
+      color: var(--text-muted);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎯 Wordwrangler Game Report</h1>
+      <div class="meta">
+        <span><strong>Design Studio West</strong></span>
+        <span>📅 December 12, 2024</span>
+        <span>🎮 Game Code: BYU4KE</span>
+      </div>
+    </header>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-value">11</div>
+        <div class="stat-label">Players</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">5</div>
+        <div class="stat-label">Rounds</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">55</div>
+        <div class="stat-label">Total Submissions</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">3:00</div>
+        <div class="stat-label">Timer per Round</div>
+      </div>
+    </div>
+
+    <!-- Final Leaderboard -->
+    <h2>🏆 Final Leaderboard</h2>
+    <div class="leaderboard">
+      <div class="leaderboard-entry winner">
+        <div class="rank">👑</div>
+        <div class="avatar">🦋</div>
+        <div class="player-name">gian</div>
+        <div class="score">20 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#2</div>
+        <div class="avatar">✨</div>
+        <div class="player-name">Melissa</div>
+        <div class="score">19 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#3</div>
+        <div class="avatar">🦄</div>
+        <div class="player-name">DERK</div>
+        <div class="score">18 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#4</div>
+        <div class="avatar">🎯</div>
+        <div class="player-name">Rob Base</div>
+        <div class="score">17 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#5</div>
+        <div class="avatar">✨</div>
+        <div class="player-name">Milldawg</div>
+        <div class="score">16 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#6</div>
+        <div class="avatar">🐼</div>
+        <div class="player-name">kung fu panda</div>
+        <div class="score">15 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#6</div>
+        <div class="avatar">🐶</div>
+        <div class="player-name">halina</div>
+        <div class="score">15 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#8</div>
+        <div class="avatar">🐸</div>
+        <div class="player-name">eleni</div>
+        <div class="score">13 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#8</div>
+        <div class="avatar">🦊</div>
+        <div class="player-name">Sabrina</div>
+        <div class="score">13 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#10</div>
+        <div class="avatar">🐸</div>
+        <div class="player-name">Aaron</div>
+        <div class="score">12 pts</div>
+      </div>
+      <div class="leaderboard-entry">
+        <div class="rank">#11</div>
+        <div class="avatar">🦊</div>
+        <div class="player-name">Tim</div>
+        <div class="score">11 pts</div>
+      </div>
+    </div>
+
+    <!-- Taskmaster Reflection -->
+    <h2>🎭 The Taskmaster Reflects</h2>
+    <div class="card glow">
+      <img src="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg" alt="Greg Davies and Alex Horne" class="taskmaster-image">
+      <p class="image-credit">Image: <a href="https://media.wbur.org/wp/2020/05/Greg-and-Alex-CROPPED-1000x709.jpg" target="_blank">WBUR</a></p>
+
+      <div class="reflection-quote">
+        "Right, so apparently twelve of you played five rounds and managed to score a collective zero points. That's genuinely impressive—like watching twelve people fail to pour water out of a boot with instructions on the heel."
+      </div>
+
+      <h3>💡 The Great Microwave Massacre</h3>
+      <p>Half of you tried to teach aliens about microwaves, and Rob Base suggested they cook human heads in them. Meanwhile, kung fu panda wrote a shopping cart haiku comparing emptiness to the human soul. This is what happens when content designers are left unsupervised.</p>
+
+      <p class="insight-question">"Did any of you actually read the task descriptions, or did you all collectively decide that 'patronizing error message' meant 'threaten the user's entire bloodline'?"</p>
+
+      <div class="reflection-quote" style="margin-top: 1.5rem;">
+        "Next time, maybe try writing something that wouldn't make a robot weep—though I'll admit, 'wiggle that wheel baby' for a shopping cart has a certain demented charm."
+      </div>
+    </div>
+
+    <!-- Round by Round -->
+    <h2>📝 Round by Round Breakdown</h2>
+
+    <!-- Round 1 -->
+    <div class="round-section">
+      <h3>Round 1: Microwave Instructions for Aliens</h3>
+      <div class="card">
+        <div class="task-header">
+          <div class="task-title">Microwave Instructions for Aliens</div>
+          <span class="task-category">instructional</span>
+        </div>
+        <p class="task-description">Write step-by-step instructions for using a microwave for someone who has never seen one and has no concept of "electricity" or "radiation." Max 5 steps.</p>
+        <p class="criteria">Judging: Actually functional instructions; Creative explanations of concepts; Would genuinely help an alien; Maintains UX writing brevity</p>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐸</span>
+          <span>eleni</span>
+        </div>
+        <div class="submission-content">
+          <p><strong>How to Make Food Hot Using the Magic Box:</strong></p>
+          <ol>
+            <li>Open the door by pulling the handle on the front—it will swing toward you like a cupboard.</li>
+            <li>Place your food on the glass plate inside (the spinning circle) and close the door until it clicks shut.</li>
+            <li>Look at the numbered buttons on the front and press the numbers that match how many minutes you want.</li>
+            <li>Press the button labeled "START" and step back—you'll hear humming sounds and see a glowing light inside.</li>
+            <li>When it beeps loudly, open the door carefully and remove your food using cloth because it will be very hot.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦄</span>
+          <span>DERK</span>
+        </div>
+        <div class="submission-content">
+          <p>1. cooking is overrated; eat your food raw</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🎯</span>
+          <span>Rob Base</span>
+        </div>
+        <div class="submission-content">
+          <p>Pull handle. Put a human head inside. Press the big red button. That will cook the head. If head is undercooked. Press red button again. Enjoy.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">✨</span>
+          <span>Milldawg</span>
+        </div>
+        <div class="submission-content">
+          <ol>
+            <li>Open the door and put your cold thing inside (NO METAL ALLOWED)</li>
+            <li>Press the "30 second" button enough times to reach the desired time to cook</li>
+            <li>Wait until the sound is made</li>
+            <li>Test for hotness (in your mouth or other orifice for heat sensitivity)</li>
+            <li>Add 30 seconds if required. Otherwise enjoy!</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐸</span>
+          <span>Aaron</span>
+        </div>
+        <div class="submission-content">
+          <p>Microwaves are a great way for you and your interstellar allies to dry off after splashing down to Earth for an invasion.</p>
+          <p>To use a microwave:</p>
+          <ol>
+            <li>Pull the lever, then open the door.</li>
+            <li>Crawl, ooze, or fly into the small room inside.</li>
+            <li>Have your friend select the <strong>Start</strong> button.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 2 -->
+    <div class="round-section">
+      <h3>Round 2: The Most Patronizing Error Message</h3>
+      <div class="card">
+        <div class="task-header">
+          <div class="task-title">The Most Patronizing Error Message</div>
+          <span class="task-category">error_messages</span>
+        </div>
+        <p class="task-description">Write an error message that is technically helpful but deeply condescending. The user has entered an invalid email format. Make them question their life choices while still telling them what went wrong.</p>
+        <p class="criteria">Judging: Actually communicates the error; Level of condescension achieved; Still technically usable; Creativity of the insult</p>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦊</span>
+          <span>Tim</span>
+        </div>
+        <div class="submission-content">
+          <p>Are you freaking kidding me?</p>
+          <p>You seriously don't know what an email is? Are you that dumb that you need me to spell it out?</p>
+          <p>Try again stupid</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">✨</span>
+          <span>Melissa</span>
+        </div>
+        <div class="submission-content">
+          <p>Bless. Is this the first time you've seen an email? That's ok, fish don't climb trees do they, sweetheart?</p>
+          <p>Emails have to have @ and end in .com, .edu, dot something. Why don't you go back and try and read a little more closely? Give it another shot. If you can't figure it out, you can reach out to our support team.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐸</span>
+          <span>eleni</span>
+        </div>
+        <div class="submission-content">
+          <p>Oh sweetie, an email address needs an @ symbol followed by a domain (like gmail.com)—it's the same format you've successfully used hundreds of times before, so I'm not sure what happened just now. Please take a deep breath and try again.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦄</span>
+          <span>DERK</span>
+        </div>
+        <div class="submission-content">
+          <p>You entering a wrong email is fine because no one wants to talk to you anyway. You could try again but that would be desperate.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">✨</span>
+          <span>Milldawg</span>
+        </div>
+        <div class="submission-content">
+          <p>Uh, are you OK? If you haven't seen one before, an email address is a string of text that is associated with a person so you can send them marketing messages they struggle to opt out of. You have written something else. Have you used the internet before? Are you having a stroke? Most people know what emails are. I will call you to walk you through the whole email thing. Please pick up. Love you bye</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦋</span>
+          <span>gian</span>
+        </div>
+        <div class="submission-content">
+          <p>Wow, you can't do anything right can you? So, because you clearly didn't know, for the computer to understand what the hell you're doing, <em>you have to write it in a way it understands it</em>.</p>
+          <p>For an email, that means following this simple format: <strong>email@example.com.</strong></p>
+          <p><strong>Look at it again so you don't mess it up this time.</strong></p>
+          <p>I can't believe you've survived this long to encounter this error. Congratulations. Also, you're welcome.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐼</span>
+          <span>kung fu panda</span>
+        </div>
+        <div class="submission-content">
+          <p>It makes sense that you screwed up something as simple as entering an email. Its not like anyone talks to you anyway. But on the off-chance that someone is forced at gunpoint to contact you, or you pay someone to do it out of sheer loneliness and desperation, make sure you use the @ sign.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 3 -->
+    <div class="round-section">
+      <h3>Round 3: Empty State Poetry</h3>
+      <div class="card">
+        <div class="task-header">
+          <div class="task-title">Empty State Poetry</div>
+          <span class="task-category">empty_states</span>
+        </div>
+        <p class="task-description">Write a haiku (5-7-5 syllables) for an empty shopping cart that is both useful AND emotionally resonant.</p>
+        <p class="criteria">Judging: Correct haiku format; Actually helpful (implies next action); Emotional quality; Works as real UI</p>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦄</span>
+          <span>DERK</span>
+        </div>
+        <div class="submission-content">
+          <p>fill your fucking cart<br>late stage capitalism<br>buy shit you don't need</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐸</span>
+          <span>Aaron</span>
+        </div>
+        <div class="submission-content">
+          <p>Why no stuff to buy?<br>Black-Friday-Cyber-Monday<br>Boxless doorstep sad.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦋</span>
+          <span>gian</span>
+        </div>
+        <div class="submission-content">
+          <p>Emptiness and calm<br>An infinity of space<br>Time to fill the void</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">✨</span>
+          <span>Milldawg</span>
+        </div>
+        <div class="submission-content">
+          <p>shopping is quite hard<br>you already have so much<br>but what if ... new thing?</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🎯</span>
+          <span>Rob Base</span>
+        </div>
+        <div class="submission-content">
+          <p>Be ready to go<br>Good things are coming your way<br>Wiggle that wheel baby</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦊</span>
+          <span>Sabrina</span>
+        </div>
+        <div class="submission-content">
+          <p>Cart waits, hollow, still—<br>Dreams paused until you return.<br>Add what brings you joy.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">✨</span>
+          <span>Melissa</span>
+        </div>
+        <div class="submission-content">
+          <p>Capitalism.<br>Late stage. The only reprieve—<br>Add endorphins to cart.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐸</span>
+          <span>eleni</span>
+        </div>
+        <div class="submission-content">
+          <p>Your cart sits empty—<br>Add items to continue,<br>or browse collections.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 4 -->
+    <div class="round-section">
+      <h3>Round 4: The Anti-Dark Pattern</h3>
+      <div class="card">
+        <div class="task-header">
+          <div class="task-title">The Anti-Dark Pattern</div>
+          <span class="task-category">ethics_ux</span>
+        </div>
+        <p class="task-description">Here's a dark pattern: "Are you sure you want to miss out on exclusive deals by unsubscribing?" Rewrite it as the most honest, ethical, user-respecting version possible while still being professional.</p>
+        <p class="criteria">Judging: Removes manipulation completely; Still serves business purpose (gives option); Respectful tone; Maintains brand professionalism</p>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐸</span>
+          <span>eleni</span>
+        </div>
+        <div class="submission-content">
+          <p>We'll stop sending you marketing emails. You can resubscribe anytime from your account settings if you change your mind.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🐼</span>
+          <span>kung fu panda</span>
+        </div>
+        <div class="submission-content">
+          <p>Save money. Live better. Unsubscribe</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🎯</span>
+          <span>Rob Base</span>
+        </div>
+        <div class="submission-content">
+          <p>Yeah, it's garbage. You outsmarted us by not taking the upsell. I'll probably lose my job now, but that's not your problem.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦄</span>
+          <span>DERK</span>
+        </div>
+        <div class="submission-content">
+          <p>Honestly, as a professional sailor, I am feeling so fucking ethical and I respect you so goddamn much that I want to be sure you want to unsubscribe, matey.</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">✨</span>
+          <span>Melissa</span>
+        </div>
+        <div class="submission-content">
+          <p>Click to unsubscribe. You'll stop receiving our emails. You can still receive our exclusive deals by Googling our company name + discount code + "Reddit."</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦋</span>
+          <span>gian</span>
+        </div>
+        <div class="submission-content">
+          <p>We'll send you exclusive deals if you stay subscribed. No big deal if not tho haha :)</p>
+        </div>
+      </div>
+
+      <div class="submission">
+        <div class="submission-header">
+          <span class="avatar">🦊</span>
+          <span>Sabrina</span>
+        </div>
+        <div class="submission-content">
+          <p>By unsubscribing we will no longer bother you daily to spend money with us. However we still bother you weekly in a different email which you must also unsubscribe separately from.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Round 5 -->
+    <div class="round-section">
+      <h3>Round 5: Onboarding for the Immortal</h3>
+      <div class="card">
+        <div class="task-header">
+          <div class="task-title">Onboarding for the Immortal</div>
+          <span class="task-category">onboarding</span>
+        </div>
+        <p class="task-description">Write the first onboarding tooltip for a to-do list app. The user is a 3,000-year-old vampire who has never needed to remember anything before. Max 40 words.</p>
+        <p class="criteria">Judging: Works as real onboarding; Addresses immortal user problems; Stays in character; Actually helpful</p>
+      </div>
+
+      <p style="color: var(--text-muted); font-style: italic; margin: 1rem 0;">Submissions for Round 5 were captured but not included in the data export.</p>
+    </div>
+
+    <!-- Notable Highlights -->
+    <h2>✨ Notable Highlights</h2>
+    <div class="card">
+      <h3>🏆 Best Submissions (per Taskmaster)</h3>
+      <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+        <li><strong>Rob Base</strong> - "Wiggle that wheel baby" (Shopping cart haiku with demented charm)</li>
+        <li><strong>kung fu panda</strong> - Shopping cart haiku comparing emptiness to the human soul</li>
+        <li><strong>Rob Base</strong> - Suggested cooking human heads in microwaves for aliens</li>
+      </ul>
+
+      <h3 style="margin-top: 1.5rem;">📊 Participation Stats</h3>
+      <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+        <li>11 players actively participated across all 5 rounds</li>
+        <li>Most submissions were creative interpretations (sometimes ignoring the actual task)</li>
+        <li>Strong themes: late-stage capitalism, existential dread, passive aggression</li>
+      </ul>
+    </div>
+
+    <footer>
+      <p>Generated by Wordwrangler • December 16, 2024</p>
+      <p style="margin-top: 0.5rem;">🎯 A UX Writing Game Show Experience</p>
+    </footer>
+  </div>
+</body>
+</html>
